@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}Clientes · Pyetro Sapekids{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4"><div><h1 class="h2 mb-1">Clientes</h1><div class="text-secondary">Cadastro básico para identificar vendas.</div></div><a class="btn btn-dark" href="{{ url_for('customer_new') }}">Novo cliente</a></div>
+<div class="card p-3"><div class="table-responsive"><table class="table align-middle"><thead><tr><th>Nome</th><th>Telefone</th><th>E-mail</th><th>Ações</th></tr></thead><tbody>
+{% for c in customers %}<tr><td>{{ c.name }}</td><td>{{ c.phone or '-' }}</td><td>{{ c.email or '-' }}</td><td><a class="btn btn-sm btn-outline-dark" href="{{ url_for('customer_edit', customer_id=c.id) }}">Editar</a><form method="post" action="{{ url_for('customer_delete', customer_id=c.id) }}" class="d-inline" onsubmit="return confirm('Excluir cliente?')"><button class="btn btn-sm btn-outline-danger">Excluir</button></form></td></tr>{% else %}<tr><td colspan="4">Nenhum cliente cadastrado.</td></tr>{% endfor %}
+</tbody></table></div></div>
+{% endblock %}

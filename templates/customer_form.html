@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Cliente · Pyetro Sapekids{% endblock %}
+{% block content %}
+<div class="card p-4" style="max-width:760px"><h1 class="h3">{{ 'Editar cliente' if customer else 'Novo cliente' }}</h1><form method="post" class="row g-3">
+<div class="col-md-6"><label class="form-label">Nome</label><input class="form-control" name="name" value="{{ customer.name if customer else '' }}" required></div>
+<div class="col-md-6"><label class="form-label">Telefone</label><input class="form-control" name="phone" value="{{ customer.phone if customer else '' }}"></div>
+<div class="col-md-6"><label class="form-label">E-mail</label><input class="form-control" type="email" name="email" value="{{ customer.email if customer else '' }}"></div>
+<div class="col-12"><label class="form-label">Observações</label><textarea class="form-control" name="notes" rows="3">{{ customer.notes if customer else '' }}</textarea></div>
+<div class="col-12"><button class="btn btn-dark">Salvar</button> <a class="btn btn-outline-secondary" href="{{ url_for('customers_admin') }}">Cancelar</a></div>
+</form></div>
+{% endblock %}

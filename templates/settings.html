@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Configurações · Pyetro Sapekids{% endblock %}
+{% block content %}
+<div class="mb-4"><h1 class="h2 mb-1">Configurações</h1><div class="text-secondary">Dados que podem aparecer em documentos e recibos.</div></div>
+<div class="card p-4" style="max-width:900px"><form method="post" class="row g-3">
+<div class="col-md-6"><label class="form-label">Nome da loja</label><input class="form-control" name="store_name" value="{{ settings.get('store_name','Pyetro Sapekids') }}"></div>
+<div class="col-md-6"><label class="form-label">Telefone</label><input class="form-control" name="store_phone" value="{{ settings.get('store_phone','') }}"></div>
+<div class="col-12"><label class="form-label">Endereço</label><input class="form-control" name="store_address" value="{{ settings.get('store_address','') }}"></div>
+<div class="col-12"><label class="form-label">Rodapé de documentos</label><input class="form-control" name="store_footer" value="{{ settings.get('store_footer','') }}"></div>
+<div class="col-12 d-flex gap-2"><button class="btn btn-dark">Salvar configurações</button><a class="btn btn-outline-secondary" href="{{ url_for('backup_admin') }}">Baixar backup JSON</a></div>
+</form></div>
+{% endblock %}

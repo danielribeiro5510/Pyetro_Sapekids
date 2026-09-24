@@ -1,26 +1,20 @@
 {% extends "base.html" %}
 {% block title %}Nova venda · Pyetro Sapekids{% endblock %}
 {% block content %}
-<div class="d-flex flex-column flex-md-row justify-content-between gap-2 align-items-md-center mb-4">
-<div><h1 class="page-title h2 mb-1"><i class="bi bi-cart-plus me-1"></i> Nova venda</h1><div class="page-subtitle">Monte o carrinho e finalize o pagamento.</div></div>
-{% if cart %}<form method="post" class="m-0"><input type="hidden" name="action" value="clear"><button class="btn btn-outline-danger"><i class="bi bi-trash3 me-1"></i> Limpar venda</button></form>{% endif %}
-</div>
+<div class="d-flex justify-content-between align-items-center mb-4"><div><h1 class="h2 mb-1">Nova venda</h1><div class="text-secondary">PDV simples com controle de estoque.</div></div></div>
 <div class="row g-4">
-<div class="col-lg-7">
-<div class="card p-4">
-<h3 class="section-title h5">Adicionar produto</h3>
-<form method="post" class="row g-3 mt-1"><input type="hidden" name="action" value="add">
-<div class="col-12"><label class="form-label fw-semibold">Produto</label><select class="form-select" name="product_id" required><option value="">Selecione um produto...</option>{% for p in products %}<option value="{{ p.id }}">{{ p.name }}{% if p.brand %} - {{ p.brand }}{% endif %}{% if p.color %} - {{ p.color }}{% endif %}{% if p.size %} - Tam. {{ p.size }}{% endif %} | Estoque: {{ p.stock }} | R$ {{ '%.2f'|format(p.price) }}</option>{% endfor %}</select></div>
-<div class="col-md-4"><label class="form-label fw-semibold">Quantidade</label><input class="form-control" type="number" min="1" name="quantity" value="1" required></div>
-<div class="col-md-8 d-flex align-items-end"><button class="btn btn-primary w-100"><i class="bi bi-plus-lg me-1"></i> Adicionar à venda</button></div>
-</form></div>
-<div class="card p-4 mt-4"><div class="d-flex justify-content-between align-items-center"><h3 class="section-title h5 mb-0">Itens da venda</h3><span class="badge text-bg-light">{{ cart|length }} item(ns)</span></div>
-<div class="table-responsive mt-3"><table class="table mb-0"><thead><tr><th>Produto</th><th>Qtd.</th><th>Preço</th><th>Subtotal</th><th></th></tr></thead><tbody>
-{% for item in cart %}<tr><td class="fw-semibold">{{ item.name }}{% if item.color %}<br><small class="text-secondary">Cor: {{ item.color }}</small>{% endif %}{% if item.size %}<small class="text-secondary"> · Tam.: {{ item.size }}</small>{% endif %}</td><td>{{ item.quantity }}</td><td>R$ {{ '%.2f'|format(item.unit_price) }}</td><td class="fw-semibold">R$ {{ '%.2f'|format(item.quantity * item.unit_price) }}</td><td><form method="post"><input type="hidden" name="action" value="remove"><input type="hidden" name="product_id" value="{{ item.product_id }}"><button class="btn btn-sm btn-outline-danger" title="Remover"><i class="bi bi-x-lg"></i></button></form></td></tr>
-{% else %}<tr><td colspan="5"><div class="empty-state"><i class="bi bi-cart-x fs-2 d-block mb-2"></i>Nenhum produto adicionado à venda.</div></td></tr>{% endfor %}
-</tbody></table></div></div>
+<div class="col-lg-7"><div class="card p-4"><form method="post" class="row g-3"><input type="hidden" name="action" value="add">
+<div class="col-md-8"><label class="form-label">Produto</label><select class="form-select" name="product_id" required><option value="">Selecione...</option>{% for p in products %}<option value="{{ p.id }}">{{ p.name }}{% if p.brand %} · {{ p.brand }}{% endif %}{% if p.size %} · {{ p.size }}{% endif %} — R$ {{ '%.2f'|format(p.price) }} ({{ p.stock }})</option>{% endfor %}</select></div>
+<div class="col-md-4"><label class="form-label">Quantidade</label><input class="form-control" type="number" min="1" name="quantity" value="1" required></div>
+<div class="col-12"><button class="btn btn-dark">Adicionar ao carrinho</button></div></form>
+<hr><h2 class="h5">Carrinho</h2>
+{% for i in cart %}<div class="d-flex justify-content-between border-bottom py-2"><div>{{ i.name }} × {{ i.quantity }}</div><div>R$ {{ '%.2f'|format(i.quantity*i.unit_price) }} <form method="post" class="d-inline"><input type="hidden" name="action" value="remove"><input type="hidden" name="product_id" value="{{ i.product_id }}"><button class="btn btn-sm btn-link text-danger">remover</button></form></div></div>{% else %}<div class="text-secondary">Carrinho vazio.</div>{% endfor %}
+</div></div>
+<div class="col-lg-5"><div class="card p-4"><h2 class="h5">Finalizar</h2><form method="post" class="row g-3"><input type="hidden" name="action" value="finish">
+<div class="col-12"><label class="form-label">Cliente (opcional)</label><select class="form-select" name="customer_id"><option value="">Consumidor final</option>{% for c in customers %}<option value="{{ c.id }}">{{ c.name }}{% if c.phone %} · {{ c.phone }}{% endif %}</option>{% endfor %}</select></div>
+<div class="col-12"><label class="form-label">Pagamento</label><select class="form-select" name="payment_method" required><option value="">Selecione...</option><option>PIX</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option></select></div>
+<div class="col-12"><div class="p-3 bg-light rounded-3"><div class="text-secondary">Total</div><div class="fs-2 fw-bold">R$ {{ '%.2f'|format(total) }}</div></div></div>
+<div class="col-12"><button class="btn btn-success w-100" {% if not cart %}disabled{% endif %}>Finalizar venda</button></div></form>
+<form method="post" class="mt-2"><input type="hidden" name="action" value="clear"><button class="btn btn-outline-secondary w-100">Limpar venda</button></form></div></div>
 </div>
-<div class="col-lg-5"><div class="card p-4" style="position:sticky;top:140px"><div class="d-flex justify-content-between align-items-center mb-3"><h3 class="section-title h5 mb-0">Resumo da venda</h3><i class="bi bi-receipt text-primary fs-4"></i></div><div class="bg-light rounded-4 p-3 mb-4"><div class="text-secondary small">Total</div><div class="sale-total">R$ {{ '%.2f'|format(total) }}</div></div>
-<form method="post"><input type="hidden" name="action" value="finish"><label class="form-label fw-semibold">Forma de pagamento</label><select class="form-select mb-3" name="payment_method" required {% if not cart %}disabled{% endif %}><option value="">Selecione...</option><option>PIX</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option></select><button class="btn btn-success btn-lg w-100" {% if not cart %}disabled{% endif %}><i class="bi bi-check-circle me-1"></i> Finalizar venda</button></form>
-</div></div></div>
 {% endblock %}

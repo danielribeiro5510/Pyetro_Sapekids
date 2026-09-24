@@ -1,45 +1,14 @@
 {% extends "base.html" %}
 {% block title %}Usuários · Pyetro Sapekids{% endblock %}
 {% block content %}
-<div class="d-flex flex-column flex-md-row justify-content-between gap-2 align-items-md-center mb-4">
-  <div>
-    <h1 class="page-title h2 mb-1">Usuários</h1>
-    <div class="page-subtitle">Crie contas e defina quem terá acesso de Administrador ou Operador.</div>
-  </div>
-  <a class="btn btn-primary" href="{{ url_for('new_user') }}"><i class="bi bi-person-plus me-1"></i> Novo usuário</a>
-</div>
-
-<div class="card p-3 p-lg-4">
-  <div class="table-responsive">
-    <table class="table table-hover mb-0">
-      <thead>
-        <tr><th>Usuário</th><th>Perfil</th><th>Ações</th></tr>
-      </thead>
-      <tbody>
-      {% for u in users %}
-        <tr>
-          <td class="fw-semibold"><i class="bi bi-person-circle me-2"></i>{{ u.username }}</td>
-          <td>
-            {% if u.role == 'admin' %}
-              <span class="badge-soft" style="background:#efeeff;color:#5148e5"><i class="bi bi-shield-lock me-1"></i>Administrador</span>
-            {% else %}
-              <span class="badge-soft" style="background:#eef5ff;color:#3578e5"><i class="bi bi-person me-1"></i>Operador</span>
-            {% endif %}
-          </td>
-          <td class="text-nowrap">
-            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('edit_user', user_id=u.id) }}"><i class="bi bi-pencil me-1"></i>Editar</a>
-            {% if u.id != session.get('user_id') %}
-            <form method="post" action="{{ url_for('delete_user', user_id=u.id) }}" class="d-inline" onsubmit="return confirm('Tem certeza que deseja excluir o usuário {{ u.username|e }}?');">
-              <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash me-1"></i>Excluir</button>
-            </form>
-            {% endif %}
-          </td>
-        </tr>
-      {% else %}
-        <tr><td colspan="3"><div class="empty-state">Nenhum usuário cadastrado.</div></td></tr>
-      {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
+<div class="d-flex justify-content-between align-items-center mb-4"><div><h1 class="h2 mb-1">Usuários</h1><div class="text-secondary">Defina quem é ADM e quem é Operador.</div></div><a class="btn btn-dark" href="{{ url_for('user_new') }}"><i class="bi bi-person-plus me-1"></i> Novo usuário</a></div>
+<div class="card p-3"><div class="table-responsive"><table class="table align-middle"><thead><tr><th>Usuário</th><th>Perfil</th><th>Status</th><th class="text-end">Ações</th></tr></thead><tbody>
+{% for u in users %}
+<tr><td><strong>{{ u.username }}</strong></td><td>{% if u.role=='admin' %}<span class="badge text-bg-dark">ADM</span>{% else %}<span class="badge text-bg-secondary">Operador</span>{% endif %}</td><td>{% if u.active %}<span class="badge text-bg-success">Ativo</span>{% else %}<span class="badge text-bg-warning">Inativo</span>{% endif %}</td><td class="text-end">
+<a class="btn btn-sm btn-outline-dark" href="{{ url_for('user_edit', user_id=u.id) }}">Editar</a>
+<form method="post" action="{{ url_for('user_toggle', user_id=u.id) }}" class="d-inline"><button class="btn btn-sm btn-outline-secondary">{{ 'Desativar' if u.active else 'Ativar' }}</button></form>
+{% if u.id != session.get('user_id') %}<form method="post" action="{{ url_for('user_delete', user_id=u.id) }}" class="d-inline" onsubmit="return confirm('Excluir este usuário?')"><button class="btn btn-sm btn-outline-danger">Excluir</button></form>{% endif %}
+</td></tr>
+{% endfor %}
+</tbody></table></div></div>
 {% endblock %}
