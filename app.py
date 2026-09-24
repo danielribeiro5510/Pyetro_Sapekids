@@ -481,7 +481,7 @@ def admin_dashboard():
     )
 
 
-@app.route("/")
+@app.route("/dashboard")
 @login_required
 def dashboard():
     conn = db()
@@ -508,13 +508,22 @@ def dashboard():
 
     conn.close()
 
-    return render_template(
+    response = make_response(render_template(
         "dashboard.html",
         total_products=total_products,
         total_stock=total_stock,
         low_stock=low_stock,
         movements=movements
-    )
+    ))
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
+
+@app.route("/")
+def root():
+    return redirect(url_for("dashboard")) if get_current_user() else redirect(url_for("login"))
 
 
 @app.route("/products")
