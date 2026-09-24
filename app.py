@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
 from functools import wraps
@@ -6,16 +7,58 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 import os
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ON_RENDER = bool(os.environ.get("RENDER"))
+
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
 TZ = ZoneInfo("America/Sao_Paulo")
-app.secret_key = os.environ.get("SECRET_KEY", "dev-only-change-this-secret")
-DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "loja.db")
+
+secret = os.environ.get("SECRET_KEY")
+if not secret:
+    if ON_RENDER:
+        raise RuntimeError("Defina a variável de ambiente SECRET_KEY no Render.")
+    secret = "dev-only-change-this-secret"
+app.secret_key = secret
+app.config["SESSION_COOKIE_SECURE"] = ON_RENDER
+app.config["PREFERRED_URL_SCHEME"] = "https" if ON_RENDER else "http"
+
+DB = os.environ.get("DATABASE_PATH") or os.path.join(BASE_DIR, "loja.db")
+os.makedirs(os.path.dirname(os.path.abspath(DB)) or ".", exist_ok=True)
 
 
 def db():
-    conn = sqlite3.connect(DB)
+    conn = sqlite3.connect(DB, check_same_thread=False, timeout=30)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA foreign_keys=ON")
     return conn
+
+
+def seed_users(conn):
+    """Cria usuários iniciais a partir de SEED_USERS=user:senha,user:senha"""
+    raw = os.environ.get("SEED_USERS", "").strip()
+    if not raw:
+        return
+
+    for item in raw.split(","):
+        item = item.strip()
+        if ":" not in item:
+            continue
+        username, senha = item.split(":", 1)
+        username = username.strip()
+        senha = senha.strip()
+        if not username or not senha:
+            continue
+        existente = conn.execute(
+            "SELECT id FROM users WHERE username = ?",
+            (username,)
+        ).fetchone()
+        if not existente:
+            conn.execute(
+                "INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
+                (username, generate_password_hash(senha), "admin")
+            )
 
 
 def init_db():
@@ -71,25 +114,7 @@ def init_db():
     );
     """)
 
-    # Cria os usuários padrão caso ainda não existam.
-    usuarios_padrao = [
-        ("admin", "admin123", "admin"),
-        ("Pedro", "Pyetro123", "admin"),
-        ("Roberta", "Pyetro123", "admin"),
-    ]
-
-    for username, senha, role in usuarios_padrao:
-        existente = conn.execute(
-            "SELECT id FROM users WHERE username = ?",
-            (username,)
-        ).fetchone()
-
-        if not existente:
-            conn.execute(
-                "INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
-                (username, generate_password_hash(senha), role)
-            )
-
+    seed_users(conn)
     conn.commit()
     conn.close()
 
@@ -290,6 +315,15 @@ def edit_product(product_id):
 @login_required
 def delete_product(product_id):
     conn = db()
+    used = conn.execute(
+        "SELECT 1 FROM sale_items WHERE product_id = ? LIMIT 1",
+        (product_id,)
+    ).fetchone()
+    if used:
+        conn.close()
+        flash("Não é possível excluir um produto que já entrou em uma venda.", "danger")
+        return redirect(url_for("products"))
+
     conn.execute(
         "DELETE FROM movements WHERE product_id = ?",
         (product_id,)
@@ -664,4 +698,5 @@ def logo():
 
 if __name__ == "__main__":
     init_db()
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="127.0.0.1", port=port, debug=not ON_RENDER)
