@@ -431,19 +431,54 @@ def edit_product(product_id):
 @app.post("/products/<int:product_id>/delete")
 @login_required
 def delete_product(product_id):
+    """Exclui um produto sem quebrar o histórico de vendas."""
     conn = db()
-    conn.execute(
-        "DELETE FROM movements WHERE product_id = ?",
-        (product_id,)
-    )
-    conn.execute(
-        "DELETE FROM products WHERE id = ?",
-        (product_id,)
-    )
-    conn.commit()
-    conn.close()
 
-    flash("Produto removido.", "success")
+    try:
+        product = conn.execute(
+            "SELECT id, name FROM products WHERE id = ?",
+            (product_id,)
+        ).fetchone()
+
+        if not product:
+            flash("Produto não encontrado.", "danger")
+            return redirect(url_for("products"))
+
+        # Produtos que já foram vendidos permanecem no cadastro para
+        # preservar o histórico e os relatórios de vendas.
+        sold = conn.execute(
+            "SELECT COUNT(*) AS c FROM sale_items WHERE product_id = ?",
+            (product_id,)
+        ).fetchone()
+
+        if int(sold["c"] or 0) > 0:
+            flash(
+                f"Não é possível excluir '{product['name']}' porque ele já "
+                "está vinculado a uma venda. O histórico de vendas foi preservado.",
+                "warning"
+            )
+            return redirect(url_for("products"))
+
+        # Se nunca foi vendido, remove os movimentos e o produto.
+        conn.execute(
+            "DELETE FROM movements WHERE product_id = ?",
+            (product_id,)
+        )
+        conn.execute(
+            "DELETE FROM products WHERE id = ?",
+            (product_id,)
+        )
+
+        conn.commit()
+        flash(f"Produto '{product['name']}' excluído com sucesso.", "success")
+
+    except Exception as exc:
+        conn.rollback()
+        flash(f"Não foi possível excluir o produto: {exc}", "danger")
+
+    finally:
+        conn.close()
+
     return redirect(url_for("products"))
 
 
