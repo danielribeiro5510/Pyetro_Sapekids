@@ -6,7 +6,7 @@ from datetime import datetime
 import os
 
 app = Flask(__name__)
-app.secret_key = "TROQUE-ESTA-CHAVE-SECRETA"
+app.secret_key = os.environ.get("SECRET_KEY", "dev-only-change-this-secret")
 DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "loja.db")
 
 
@@ -83,6 +83,9 @@ def init_db():
 
     conn.commit()
     conn.close()
+
+
+init_db()
 
 
 def login_required(fn):
