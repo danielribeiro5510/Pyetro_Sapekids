@@ -199,7 +199,8 @@ def init_db():
         username = username.strip()
         senha = senha.strip()
         if username and senha:
-            usuarios_padrao.append((username, senha, "admin"))
+            role = "admin" if username.lower() == "admin" else "operator"
+            usuarios_padrao.append((username, senha, role))
 
     for username, senha, role in usuarios_padrao:
         existente = conn.execute(
@@ -240,6 +241,18 @@ def login_required(fn):
     return wrapper
 
 
+def admin_required(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if "user_id" not in session:
+            return redirect(url_for("login"))
+        if session.get("role") != "admin":
+            flash("Acesso permitido somente ao administrador.", "danger")
+            return redirect(url_for("dashboard"))
+        return fn(*args, **kwargs)
+    return wrapper
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -256,6 +269,7 @@ def login():
         if user and check_password_hash(user["password"], password):
             session["user_id"] = user["id"]
             session["username"] = user["username"]
+            session["role"] = user["role"]
             return redirect(url_for("dashboard"))
 
         flash("Usuário ou senha inválidos.", "danger")
@@ -267,6 +281,15 @@ def login():
 def logout():
     session.clear()
     return redirect(url_for("login"))
+
+
+@app.context_processor
+def inject_user_permissions():
+    return {
+        "current_username": session.get("username"),
+        "current_role": session.get("role"),
+        "is_admin": session.get("role") == "admin"
+    }
 
 
 @app.route("/")
@@ -327,7 +350,12 @@ def products():
         ).fetchall()
 
     conn.close()
-    return render_template("products.html", products=rows, search=search)
+    return render_template(
+        "products.html",
+        products=rows,
+        search=search,
+        is_admin=(session.get("role") == "admin")
+    )
 
 
 @app.route("/products/new", methods=["GET", "POST"])
@@ -429,7 +457,7 @@ def edit_product(product_id):
 
 
 @app.post("/products/<int:product_id>/delete")
-@login_required
+@admin_required
 def delete_product(product_id):
     """Exclui um produto sem quebrar o histórico de vendas."""
     conn = db()
