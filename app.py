@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file, g, make_response
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
 try:
@@ -11,6 +11,7 @@ from functools import wraps
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import os
+import secrets
 
 app = Flask(__name__)
 TZ = ZoneInfo("America/Sao_Paulo")
@@ -133,6 +134,13 @@ def init_db():
             details TEXT,
             created_at TEXT NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS auth_sessions (
+            token TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        );
         """
         conn.executescript(schema)
         # Em bancos PostgreSQL já existentes, a coluna active pode ainda não existir.
@@ -203,6 +211,13 @@ def init_db():
             details TEXT,
             created_at TEXT NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS auth_sessions (
+            token TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        );
         """)
 
     # Cria somente usuários que ainda não existem.
@@ -262,29 +277,32 @@ except Exception as exc:
 def login_required(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
-        if "user_id" not in session:
+        if not get_current_user():
             return redirect(url_for("login"))
         return fn(*args, **kwargs)
     return wrapper
 
 
 @app.before_request
-def refresh_logged_user():
-    """Valida a sessão usando SOMENTE o ID do usuário no banco.
-
-    Nome e perfil nunca são confiados ao conteúdo antigo do cookie.
-    Isso impede que uma página mostre outro usuário por dados antigos de sessão.
+def load_current_user():
+    """Autenticação server-side: o navegador guarda apenas um token aleatório.
+    O usuário real é sempre recuperado do Neon pelo token, eliminando mistura
+    de contas entre páginas/abas e qualquer dependência de nome/perfil em cookie.
     """
-    user_id = session.get("user_id")
-    if not user_id:
+    g.current_user = None
+    token = request.cookies.get("pyetro_auth")
+    if not token:
         return None
 
     conn = None
     try:
         conn = db()
         user = conn.execute(
-            "SELECT id, username, role, active FROM users WHERE id = ?",
-            (int(user_id),)
+            """SELECT u.id, u.username, u.role, u.active
+               FROM auth_sessions s
+               JOIN users u ON u.id = s.user_id
+               WHERE s.token = ?""",
+            (token,)
         ).fetchone()
     except Exception:
         user = None
@@ -293,34 +311,14 @@ def refresh_logged_user():
             conn.close()
 
     if not user or not bool(user["active"]):
-        session.clear()
         return None
 
-    # Guarda apenas o identificador; nome/perfil serão buscados pelo
-    # context processor a cada página.
-    session["user_id"] = int(user["id"])
+    g.current_user = user
     return None
 
 
 def get_current_user():
-    """Retorna o usuário atual diretamente do banco."""
-    user_id = session.get("user_id")
-    if not user_id:
-        return None
-
-    conn = db()
-    try:
-        user = conn.execute(
-            "SELECT id, username, role, active FROM users WHERE id = ?",
-            (int(user_id),)
-        ).fetchone()
-    finally:
-        conn.close()
-
-    if not user or not bool(user["active"]):
-        session.clear()
-        return None
-    return user
+    return getattr(g, "current_user", None)
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -329,42 +327,68 @@ def login():
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
 
-        # Descarta completamente a sessão anterior antes de autenticar.
-        session.clear()
-
         conn = db()
         try:
             user = conn.execute(
                 "SELECT * FROM users WHERE LOWER(username) = LOWER(?)",
                 (username,)
             ).fetchone()
+
+            if user and not bool(user["active"]):
+                flash("Este usuário está desativado. Procure o administrador.", "danger")
+                return render_template("login.html")
+
+            if not user or not check_password_hash(user["password"], password):
+                flash("Usuário ou senha inválidos.", "danger")
+                return render_template("login.html")
+
+            # Cada login recebe um token novo e independente. O token aponta
+            # para o ID exato do usuário no Neon; nenhuma página precisa confiar
+            # em username/role vindos de cookie.
+            token = secrets.token_urlsafe(48)
+            now = datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
+            conn.execute("DELETE FROM auth_sessions WHERE user_id = ?", (int(user["id"]),))
+            conn.execute(
+                "INSERT INTO auth_sessions (token, user_id, created_at) VALUES (?, ?, ?)",
+                (token, int(user["id"]), now)
+            )
+            conn.commit()
         finally:
             conn.close()
 
-        if user and not bool(user["active"]):
-            flash("Este usuário está desativado. Procure o administrador.", "danger")
-            return render_template("login.html")
+        # Limpa apenas dados antigos da sessão Flask (ex.: carrinho), sem usar
+        # a sessão para autenticação.
+        session.clear()
+        session.permanent = False
 
-        if user and check_password_hash(user["password"], password):
-            # A sessão guarda somente o ID. O nome e o perfil são sempre
-            # recuperados do Neon para cada requisição.
-            session.clear()
-            session["user_id"] = int(user["id"])
-            session.permanent = False
-
-            if user["role"] == "admin":
-                return redirect(url_for("admin_dashboard"))
-            return redirect(url_for("dashboard"))
-
-        flash("Usuário ou senha inválidos.", "danger")
+        target = "admin_dashboard" if user["role"] == "admin" else "dashboard"
+        response = make_response(redirect(url_for(target)))
+        response.set_cookie(
+            "pyetro_auth", token, httponly=True, samesite="Lax",
+            secure=request.is_secure, max_age=60 * 60 * 24 * 7, path="/"
+        )
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
 
     return render_template("login.html")
 
 
 @app.route("/logout")
 def logout():
+    token = request.cookies.get("pyetro_auth")
+    if token:
+        conn = db()
+        try:
+            conn.execute("DELETE FROM auth_sessions WHERE token = ?", (token,))
+            conn.commit()
+        finally:
+            conn.close()
     session.clear()
-    return redirect(url_for("login"))
+    response = make_response(redirect(url_for("login")))
+    response.delete_cookie("pyetro_auth", path="/")
+    return response
 
 
 def admin_required(fn):
@@ -393,7 +417,7 @@ def inject_user_context():
 @app.after_request
 def prevent_authenticated_page_cache(response):
     # Evita que o navegador reapresente uma página antiga de outro usuário.
-    if session.get("user_id"):
+    if request.cookies.get("pyetro_auth"):
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
@@ -409,7 +433,7 @@ def audit(action, details=""):
             """INSERT INTO audit_logs (username, action, details, created_at)
                VALUES (?, ?, ?, ?)""",
             (
-                session.get("username", "sistema"),
+                (get_current_user()["username"] if get_current_user() else "sistema"),
                 action,
                 details,
                 datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S"),
@@ -1161,7 +1185,7 @@ def admin_toggle_user(user_id):
         return redirect(url_for("admin_users"))
 
     # Não permite desativar o próprio usuário logado.
-    if int(user["id"]) == int(session.get("user_id")):
+    if get_current_user() and int(user["id"]) == int(get_current_user()["id"]):
         conn.close()
         flash("Você não pode desativar o próprio usuário.", "warning")
         return redirect(url_for("admin_users"))
@@ -1219,7 +1243,7 @@ def admin_delete_user(user_id):
         return redirect(url_for("admin_users"))
 
     # Segurança adicional: não exclui o próprio usuário nem o último admin.
-    if int(user["id"]) == int(session.get("user_id")):
+    if get_current_user() and int(user["id"]) == int(get_current_user()["id"]):
         conn.close()
         flash("Você não pode excluir o próprio usuário.", "warning")
         return redirect(url_for("admin_users"))

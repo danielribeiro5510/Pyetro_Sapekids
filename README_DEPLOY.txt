@@ -1,20 +1,23 @@
-PYETRO SAPEKIDS - CORREÇÃO DEFINITIVA DE SESSÃO
+PYETRO SAPEKIDS - DEPLOY
 
-Esta versão corrige a identificação do usuário entre as páginas.
+Esta versão mantém a interface e os dados do Neon.
 
-A sessão guarda somente o ID do usuário. Nome e perfil são consultados diretamente no banco Neon em cada requisição. Também foi desativado o cache das páginas autenticadas para evitar que o navegador mostre uma tela antiga de outro usuário.
+CORREÇÃO DE LOGIN/SESSÃO:
+- A autenticação agora usa um token aleatório armazenado no banco (auth_sessions).
+- O token aponta diretamente para o ID do usuário no Neon.
+- O nome e o perfil exibidos em todas as páginas são carregados do usuário autenticado.
+- Isso evita que Dashboard, Produtos, Vendas etc. mostrem outro usuário.
 
-NÃO apague nem recrie o banco Neon.
-
-Deploy:
-1. Substitua os arquivos do projeto pelos arquivos deste pacote.
-2. Faça commit/push para o GitHub.
-3. Aguarde o Render concluir.
-4. Saia do sistema, feche abas antigas e entre novamente com cada usuário.
+IMPORTANTE:
+- Não apagar o banco Neon.
+- Não alterar DATABASE_URL.
+- Substituir os arquivos do projeto por este pacote.
+- Fazer commit + push no GitHub e aguardar o Render.
+- Depois do deploy, sair da conta e entrar novamente para gerar o novo token.
 
 Teste esperado:
-- teste -> teste · Operador em todas as telas
-- Roberta -> Roberta · Operador
-- admin -> admin · ADM
-
-A interface existente foi preservada.
+- login: teste
+- Dashboard: teste · Operador
+- Produtos: teste · Operador
+- Nova venda: teste · Operador
+- Vendas: teste · Operador
