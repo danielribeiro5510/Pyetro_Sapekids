@@ -28,6 +28,7 @@ body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-s
 <a class="nav-link app-link" href="{{ url_for('new_sale') }}"><i class="bi bi-cart-plus me-1"></i>Nova venda</a>
 <a class="nav-link app-link" href="{{ url_for('sales') }}"><i class="bi bi-receipt me-1"></i>Vendas</a>
 {% if is_admin %}
+<a class="nav-link app-link" href="{{ url_for('users') }}"><i class="bi bi-people-fill me-1"></i>Usuários</a>
 <a class="nav-link app-link" href="{{ url_for('reports') }}"><i class="bi bi-bar-chart-fill me-1"></i>Relatórios</a>
 <a class="nav-link app-link" href="{{ url_for('movements') }}"><i class="bi bi-arrow-left-right me-1"></i>Movimentações</a>
 {% endif %}

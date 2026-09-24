@@ -214,11 +214,12 @@ def init_db():
                 (username, generate_password_hash(senha), role)
             )
         else:
-            # Mantém as credenciais do SEED_USERS sincronizadas, inclusive
-            # quando o usuário já existia com uma senha antiga.
+            # Não sobrescreve o perfil de um usuário que já existe.
+            # Assim, uma alteração de Operador para Administrador feita
+            # pela tela de Usuários permanece salva no Neon.
             conn.execute(
-                "UPDATE users SET password = ?, role = ? WHERE username = ?",
-                (generate_password_hash(senha), role, username)
+                "UPDATE users SET password = ? WHERE username = ?",
+                (generate_password_hash(senha), username)
             )
 
     conn.commit()
@@ -321,6 +322,182 @@ def admin_dashboard():
         revenue=float(sales_summary["total"] or 0),
         movements=movements
     )
+
+
+@app.route("/admin/users")
+@admin_required
+def users():
+    conn = db()
+    rows = conn.execute("""
+        SELECT id, username, role
+        FROM users
+        ORDER BY CASE WHEN role = 'admin' THEN 0 ELSE 1 END, username
+    """).fetchall()
+    conn.close()
+    return render_template("users.html", users=rows)
+
+
+@app.route("/admin/users/new", methods=["GET", "POST"])
+@admin_required
+def new_user():
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        role = request.form.get("role", "operator").strip().lower()
+
+        if not username:
+            flash("Informe o nome do usuário.", "danger")
+            return render_template("user_form.html", user=None)
+
+        if len(username) < 3:
+            flash("O nome do usuário deve ter pelo menos 3 caracteres.", "danger")
+            return render_template("user_form.html", user=None)
+
+        if len(password) < 6:
+            flash("A senha deve ter pelo menos 6 caracteres.", "danger")
+            return render_template("user_form.html", user=None)
+
+        if role not in {"admin", "operator"}:
+            role = "operator"
+
+        conn = db()
+        try:
+            existing = conn.execute(
+                "SELECT id FROM users WHERE username = ?", (username,)
+            ).fetchone()
+            if existing:
+                flash("Esse nome de usuário já existe.", "danger")
+                return render_template("user_form.html", user=None)
+
+            conn.execute(
+                "INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
+                (username, generate_password_hash(password), role)
+            )
+            conn.commit()
+            flash(f"Usuário '{username}' criado como {'Administrador' if role == 'admin' else 'Operador'}.", "success")
+            return redirect(url_for("users"))
+        except Exception as exc:
+            conn.rollback()
+            flash(f"Não foi possível criar o usuário: {exc}", "danger")
+        finally:
+            conn.close()
+
+    return render_template("user_form.html", user=None)
+
+
+@app.route("/admin/users/<int:user_id>/edit", methods=["GET", "POST"])
+@admin_required
+def edit_user(user_id):
+    conn = db()
+    user = conn.execute(
+        "SELECT id, username, role FROM users WHERE id = ?", (user_id,)
+    ).fetchone()
+
+    if not user:
+        conn.close()
+        return "Usuário não encontrado", 404
+
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        role = request.form.get("role", "operator").strip().lower()
+
+        if not username:
+            flash("Informe o nome do usuário.", "danger")
+            conn.close()
+            return render_template("user_form.html", user=user)
+
+        if role not in {"admin", "operator"}:
+            role = "operator"
+
+        # Não permite que o administrador retire a própria permissão.
+        if int(user["id"]) == int(session.get("user_id")) and role != "admin":
+            flash("Você não pode remover a própria permissão de Administrador.", "danger")
+            conn.close()
+            return render_template("user_form.html", user=user)
+
+        duplicate = conn.execute(
+            "SELECT id FROM users WHERE username = ? AND id <> ?",
+            (username, user_id)
+        ).fetchone()
+        if duplicate:
+            flash("Esse nome de usuário já existe.", "danger")
+            conn.close()
+            return render_template("user_form.html", user=user)
+
+        # Não permite deixar o sistema sem nenhum administrador.
+        if user["role"] == "admin" and role != "admin":
+            admin_count = conn.execute(
+                "SELECT COUNT(*) AS c FROM users WHERE role = 'admin'"
+            ).fetchone()["c"]
+            if int(admin_count) <= 1:
+                flash("O sistema precisa ter pelo menos um Administrador.", "danger")
+                conn.close()
+                return render_template("user_form.html", user=user)
+
+        try:
+            if password:
+                if len(password) < 6:
+                    flash("A nova senha deve ter pelo menos 6 caracteres.", "danger")
+                    conn.close()
+                    return render_template("user_form.html", user=user)
+                conn.execute(
+                    "UPDATE users SET username = ?, password = ?, role = ? WHERE id = ?",
+                    (username, generate_password_hash(password), role, user_id)
+                )
+            else:
+                conn.execute(
+                    "UPDATE users SET username = ?, role = ? WHERE id = ?",
+                    (username, role, user_id)
+                )
+            conn.commit()
+            flash(f"Usuário '{username}' atualizado com sucesso.", "success")
+            return redirect(url_for("users"))
+        except Exception as exc:
+            conn.rollback()
+            flash(f"Não foi possível atualizar o usuário: {exc}", "danger")
+        finally:
+            conn.close()
+
+    else:
+        conn.close()
+
+    return render_template("user_form.html", user=user)
+
+
+@app.post("/admin/users/<int:user_id>/delete")
+@admin_required
+def delete_user(user_id):
+    conn = db()
+    try:
+        user = conn.execute(
+            "SELECT id, username, role FROM users WHERE id = ?", (user_id,)
+        ).fetchone()
+        if not user:
+            flash("Usuário não encontrado.", "danger")
+            return redirect(url_for("users"))
+
+        if int(user["id"]) == int(session.get("user_id")):
+            flash("Você não pode excluir o próprio usuário.", "danger")
+            return redirect(url_for("users"))
+
+        if user["role"] == "admin":
+            admin_count = conn.execute(
+                "SELECT COUNT(*) AS c FROM users WHERE role = 'admin'"
+            ).fetchone()["c"]
+            if int(admin_count) <= 1:
+                flash("Não é possível excluir o último Administrador do sistema.", "danger")
+                return redirect(url_for("users"))
+
+        conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        conn.commit()
+        flash(f"Usuário '{user['username']}' excluído.", "success")
+    except Exception as exc:
+        conn.rollback()
+        flash(f"Não foi possível excluir o usuário: {exc}", "danger")
+    finally:
+        conn.close()
+    return redirect(url_for("users"))
 
 
 @app.route("/")

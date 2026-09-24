@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{% if user %}Editar usuário{% else %}Novo usuário{% endif %} · Pyetro Sapekids{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center gap-2 mb-4">
+  <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('users') }}"><i class="bi bi-arrow-left"></i></a>
+  <div>
+    <h1 class="page-title h2 mb-1">{% if user %}Editar usuário{% else %}Novo usuário{% endif %}</h1>
+    <div class="page-subtitle">Defina o perfil de acesso da conta.</div>
+  </div>
+</div>
+
+<div class="card p-4" style="max-width:760px">
+<form method="post">
+  <div class="mb-3">
+    <label class="form-label fw-semibold">Nome de usuário</label>
+    <input class="form-control" name="username" value="{{ user.username if user else '' }}" required minlength="3" autocomplete="username">
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label fw-semibold">Senha{% if user %} <span class="text-muted fw-normal">(deixe em branco para manter a atual)</span>{% endif %}</label>
+    <input class="form-control" type="password" name="password" {% if not user %}required{% endif %} minlength="6" autocomplete="new-password">
+  </div>
+
+  <div class="mb-4">
+    <label class="form-label fw-semibold">Perfil de acesso</label>
+    <select class="form-select" name="role" required {% if user and user.id == session.get('user_id') %}disabled{% endif %}>
+      <option value="operator" {% if not user or user.role == 'operator' %}selected{% endif %}>Operador — acesso às rotinas da loja</option>
+      <option value="admin" {% if user and user.role == 'admin' %}selected{% endif %}>Administrador — acesso total ao sistema</option>
+    </select>
+    {% if user and user.id == session.get('user_id') %}
+      <input type="hidden" name="role" value="admin">
+      <div class="form-text">Seu próprio perfil de Administrador não pode ser removido.</div>
+    {% else %}
+      <div class="form-text">Escolha <strong>Administrador</strong> para dar permissão de ADM a este usuário.</div>
+    {% endif %}
+  </div>
+
+  <div class="d-flex gap-2">
+    <a class="btn btn-light" href="{{ url_for('users') }}">Cancelar</a>
+    <button class="btn btn-primary" type="submit"><i class="bi bi-check-lg me-1"></i>{% if user %}Salvar alterações{% else %}Criar usuário{% endif %}</button>
+  </div>
+</form>
+</div>
+{% endblock %}
