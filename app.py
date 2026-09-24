@@ -776,6 +776,66 @@ def new_sale():
     return render_template("new_sale.html", products=products, cart=cart, total=total)
 
 
+@app.post("/sales/<int:sale_id>/delete")
+@admin_required
+def delete_sale(sale_id):
+    """Exclui uma venda e devolve os itens ao estoque. Somente admin."""
+    conn = db()
+
+    try:
+        sale = conn.execute(
+            "SELECT id, total FROM sales WHERE id = ?",
+            (sale_id,)
+        ).fetchone()
+
+        if not sale:
+            flash("Venda não encontrada.", "danger")
+            return redirect(url_for("sales"))
+
+        items = conn.execute(
+            "SELECT product_id, quantity FROM sale_items WHERE sale_id = ?",
+            (sale_id,)
+        ).fetchall()
+
+        # Devolve ao estoque as quantidades que foram retiradas pela venda.
+        for item in items:
+            conn.execute(
+                "UPDATE products SET stock = stock + ? WHERE id = ?",
+                (item["quantity"], item["product_id"])
+            )
+
+        # Remove os movimentos gerados especificamente por esta venda.
+        conn.execute(
+            "DELETE FROM movements WHERE note = ?",
+            (f"Venda #{sale_id}",)
+        )
+
+        # Remove os itens e, por fim, a venda.
+        conn.execute(
+            "DELETE FROM sale_items WHERE sale_id = ?",
+            (sale_id,)
+        )
+        conn.execute(
+            "DELETE FROM sales WHERE id = ?",
+            (sale_id,)
+        )
+
+        conn.commit()
+        flash(
+            f"Venda #{sale_id} excluída e o estoque dos produtos foi restaurado.",
+            "success"
+        )
+
+    except Exception as exc:
+        conn.rollback()
+        flash(f"Não foi possível excluir a venda: {exc}", "danger")
+
+    finally:
+        conn.close()
+
+    return redirect(url_for("sales"))
+
+
 @app.route("/sales/<int:sale_id>")
 @login_required
 def sale_detail(sale_id):
