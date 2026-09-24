@@ -205,14 +205,6 @@ def init_db():
         );
         """)
 
-
-    # Migração segura para bancos já existentes.
-    try:
-        conn.execute("ALTER TABLE users ADD COLUMN active INTEGER NOT NULL DEFAULT 1")
-    except Exception:
-        pass
-
-
     # Cria somente usuários que ainda não existem.
     # Depois do primeiro cadastro, senha, perfil e status são administrados
     # pela tela de Usuários e não são sobrescritos no deploy.

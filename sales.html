@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Vendas - Pyetro Sapekids{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h1 class="fw-bold mb-1">Vendas</h1>
+        <p class="text-muted mb-0">Consulte as vendas realizadas.</p>
+    </div>
+    <a href="{{ url_for('new_sale') }}" class="btn btn-success">
+        <i class="bi bi-plus-lg me-1"></i> Nova venda
+    </a>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+        {% if sales %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th class="px-4">VENDA</th>
+                        <th>DATA</th>
+                        <th>USUÁRIO</th>
+                        <th>PAGAMENTO</th>
+                        <th>ITENS</th>
+                        <th>TOTAL</th>
+                        <th class="text-end px-4">AÇÕES</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for s in sales %}
+                    <tr>
+                        <td class="px-4 fw-bold">#{{ s.id }}</td>
+                        <td>{{ s.created_at }}</td>
+                        <td>{{ s.username }}</td>
+                        <td>{{ s.payment_method }}</td>
+                        <td>{{ s.item_count }}</td>
+                        <td class="fw-semibold">R$ {{ "%.2f"|format(s.total|float) }}</td>
+                        <td class="text-end px-4 text-nowrap">
+                            <a href="{{ url_for('sale_detail', sale_id=s.id) }}"
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye me-1"></i>Ver
+                            </a>
+
+                            {% if is_admin %}
+                            <form method="post"
+                                  action="{{ url_for('delete_sale', sale_id=s.id) }}"
+                                  class="d-inline"
+                                  onsubmit="return confirm('Tem certeza que deseja excluir a venda #{{ s.id }}? O estoque será devolvido.');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-trash me-1"></i>Excluir
+                                </button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="p-5 text-center text-muted">
+            <i class="bi bi-receipt fs-1 d-block mb-3"></i>
+            Nenhuma venda registrada.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

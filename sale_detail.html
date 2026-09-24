@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Venda #{{ sale.id }} · Pyetro Sapekids{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4"><div><h1 class="page-title h2 mb-1">Venda #{{ sale.id }}</h1><div class="page-subtitle">Detalhes da venda.</div></div><a class="btn btn-light border" href="{{ url_for('sales') }}"><i class="bi bi-arrow-left me-1"></i> Voltar</a></div>
+<div class="row g-3 mb-4">
+<div class="col-md-3"><div class="card p-3 h-100"><small class="text-secondary">Data</small><strong class="mt-1">{{ sale.created_at }}</strong></div></div>
+<div class="col-md-3"><div class="card p-3 h-100"><small class="text-secondary">Usuário</small><strong class="mt-1">{{ sale.username }}</strong></div></div>
+<div class="col-md-3"><div class="card p-3 h-100"><small class="text-secondary">Pagamento</small><strong class="mt-1">{{ sale.payment_method }}</strong></div></div>
+<div class="col-md-3"><div class="card p-3 h-100"><small class="text-secondary">Total</small><strong class="mt-1 fs-5">R$ {{ '%.2f'|format(sale.total) }}</strong></div></div>
+</div>
+<div class="card p-4"><h3 class="section-title h5">Produtos vendidos</h3><div class="table-responsive mt-3"><table class="table mb-0"><thead><tr><th>Produto</th><th>Cor</th><th>Tamanho</th><th>Qtd.</th><th>Preço</th><th>Subtotal</th></tr></thead><tbody>{% for item in items %}<tr><td class="fw-semibold">{{ item.name }}</td><td>{{ item.color or '-' }}</td><td>{{ item.size or '-' }}</td><td>{{ item.quantity }}</td><td>R$ {{ '%.2f'|format(item.unit_price) }}</td><td class="fw-semibold">R$ {{ '%.2f'|format(item.subtotal) }}</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

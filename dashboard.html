@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · Pyetro Sapekids{% endblock %}
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-4">
+  <div>
+    <h1 class="page-title h2 mb-1">Dashboard</h1>
+    <div class="page-subtitle">Visão geral da sua loja</div>
+  </div>
+  <a class="btn btn-primary" href="{{ url_for('new_sale') }}"><i class="bi bi-cart-plus me-1"></i> Nova venda</a>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card metric-card p-4 h-100">
+      <div class="d-flex justify-content-between align-items-start">
+        <div><div class="metric-label">Produtos cadastrados</div><div class="metric-value mt-1">{{ total_products }}</div></div>
+        <div class="metric-icon" style="background:#efeeff;color:#6c63ff"><i class="bi bi-box-seam"></i></div>
+      </div>
+      <div class="footer-note mt-3">Catálogo da loja</div><div class="stat-accent" style="background:#6c63ff"></div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card metric-card p-4 h-100">
+      <div class="d-flex justify-content-between align-items-start">
+        <div><div class="metric-label">Itens em estoque</div><div class="metric-value mt-1">{{ total_stock }}</div></div>
+        <div class="metric-icon" style="background:#eaf8f2;color:#22a06b"><i class="bi bi-stack"></i></div>
+      </div>
+      <div class="footer-note mt-3">Quantidade disponível</div><div class="stat-accent" style="background:#22a06b"></div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card metric-card p-4 h-100">
+      <div class="d-flex justify-content-between align-items-start">
+        <div><div class="metric-label">Estoque baixo</div><div class="metric-value mt-1">{{ low_stock }}</div></div>
+        <div class="metric-icon" style="background:#fff4df;color:#d98b00"><i class="bi bi-exclamation-triangle"></i></div>
+      </div>
+      <div class="footer-note mt-3">Produtos que precisam de atenção</div><div class="stat-accent" style="background:#d98b00"></div>
+    </div>
+  </div>
+</div>
+
+<div class="card p-3 p-lg-4">
+  <div class="d-flex flex-column flex-sm-row justify-content-between gap-2 align-items-sm-center">
+    <div><h3 class="section-title h5 mb-1">Últimas movimentações</h3><div class="page-subtitle small">Entradas e saídas recentes do estoque</div></div>
+    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('movements') }}">Ver todas</a>
+  </div>
+  <div class="table-responsive mt-3">
+    <table class="table table-hover mb-0">
+      <thead><tr><th>Produto</th><th>Tipo</th><th>Quantidade</th><th>Data</th></tr></thead>
+      <tbody>
+      {% for m in movements %}
+      <tr>
+        <td class="fw-semibold">{{ m.name }}</td>
+        <td><span class="badge-soft {% if m.type == 'ENTRADA' %}badge-entry{% else %}badge-exit{% endif %}">{{ m.type }}</span></td>
+        <td>{{ m.quantity }}</td><td>{{ m.created_at }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4"><div class="empty-state"><i class="bi bi-inbox fs-2 d-block mb-2"></i>Nenhuma movimentação registrada.</div></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

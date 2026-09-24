@@ -1,18 +1,18 @@
-PYETRO SAPEKIDS — PACOTE PROFISSIONAL
+PYETRO SAPEKIDS - PACOTE CORRIGIDO
 
-1. Substitua o app.py e a pasta templates do projeto pelo conteúdo deste pacote.
-2. NÃO altere nem apague o DATABASE_URL do Render/Neon.
-3. Faça commit/push para a branch main.
-4. Render:
-   Build: pip install -r requirements.txt
-   Start: gunicorn app:app
-5. O app cria/migra tabelas e colunas automaticamente no banco existente.
-6. Teste: login, produtos, estoque, venda, usuários, auditoria e backup.
-7. ADM > Usuários permite criar, editar, ativar/desativar, excluir e promover para ADM.
-8. O SEED_USERS só cria usuários inexistentes; não sobrescreve funções/senhas já cadastradas.
-9. Produtos vendidos não são excluídos para preservar histórico.
-10. Exclusão de venda restaura estoque e registra auditoria.
-11. ADM > Configurações > Baixar backup JSON exporta os dados principais.
-12. PWA: após publicar, o navegador do celular poderá oferecer instalação.
+Este pacote mantém a interface atual e corrige a inicialização do PostgreSQL/Neon.
 
-ATENÇÃO: faça o primeiro deploy em horário de teste e confirme o banco Neon antes de operar.
+CORREÇÃO PRINCIPAL:
+- Removida a segunda tentativa de ALTER TABLE users ADD COLUMN active.
+- No PostgreSQL, uma tentativa de ALTER que falha aborta a transação e fazia o Render encerrar com:
+  current transaction is aborted, commands ignored until end of transaction block
+- Agora a coluna active é verificada antes do ALTER no bloco PostgreSQL, sem provocar transação abortada.
+
+NÃO APAGUE NEM RECRIE O BANCO NEON.
+
+Deploy:
+1. Substitua os arquivos do projeto pelo conteúdo deste ZIP.
+2. Faça commit/push para o GitHub.
+3. O Render fará novo deploy.
+4. Mantenha DATABASE_URL e SECRET_KEY no Render.
+5. Não execute DROP TABLE nem recrie o banco.
