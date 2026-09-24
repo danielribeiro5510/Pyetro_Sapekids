@@ -69,17 +69,24 @@ def init_db():
     );
     """)
 
-    admin = conn.execute(
-        "SELECT id FROM users WHERE username = ?",
-        ("admin",)
-    ).fetchone()
+    # Cria os usuários padrão caso ainda não existam.
+    usuarios_padrao = [
+        ("admin", "admin123", "admin"),
+        ("Pedro", "Pyetro123", "admin"),
+        ("Roberta", "Pyetro123", "admin"),
+    ]
 
-    if not admin:
-        senha = generate_password_hash("admin123")
-        conn.execute(
-            "INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
-            ("admin", senha, "admin")
-        )
+    for username, senha, role in usuarios_padrao:
+        existente = conn.execute(
+            "SELECT id FROM users WHERE username = ?",
+            (username,)
+        ).fetchone()
+
+        if not existente:
+            conn.execute(
+                "INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
+                (username, generate_password_hash(senha), role)
+            )
 
     conn.commit()
     conn.close()
