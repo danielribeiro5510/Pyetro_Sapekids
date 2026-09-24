@@ -1,20 +1,18 @@
 {% extends "base.html" %}
-{% block title %}Produto · Pyetro Sapekids{% endblock %}
+{% block title %}{{ 'Editar produto' if product else 'Novo produto' }} · Pyetro Sapekids{% endblock %}
 {% block content %}
-<div class="card p-4"><h1 class="h3 mb-1">{{ 'Editar produto' if product else 'Novo produto' }}</h1><p class="text-secondary">Cadastro completo de produto, estoque e identificação.</p>
-<form method="post" class="row g-3">
-<div class="col-md-6"><label class="form-label">Nome</label><input class="form-control" name="name" value="{{ product.name if product else '' }}" required></div>
-<div class="col-md-3"><label class="form-label">Categoria</label><input class="form-control" name="category" value="{{ product.category if product else '' }}" required></div>
-<div class="col-md-3"><label class="form-label">Marca</label><input class="form-control" name="brand" value="{{ product.brand if product else '' }}"></div>
-<div class="col-md-3"><label class="form-label">SKU</label><input class="form-control" name="sku" value="{{ product.sku if product else '' }}"></div>
-<div class="col-md-3"><label class="form-label">Código de barras</label><input class="form-control" name="barcode" value="{{ product.barcode if product else '' }}"></div>
-<div class="col-md-2"><label class="form-label">Cor</label><input class="form-control" name="color" value="{{ product.color if product else '' }}"></div>
-<div class="col-md-2"><label class="form-label">Tamanho</label><input class="form-control" name="size" value="{{ product.size if product else '' }}"></div>
-<div class="col-md-2"><label class="form-label">Custo</label><input class="form-control" type="number" step="0.01" name="cost_price" value="{{ product.cost_price if product else 0 }}"></div>
-<div class="col-md-2"><label class="form-label">Preço</label><input class="form-control" type="number" step="0.01" name="price" value="{{ product.price if product else 0 }}" required></div>
-<div class="col-md-2"><label class="form-label">Estoque inicial</label><input class="form-control" type="number" name="stock" value="{{ product.stock if product else 0 }}" {% if product %}readonly{% endif %}></div>
-<div class="col-md-2"><label class="form-label">Estoque mínimo</label><input class="form-control" type="number" name="min_stock" value="{{ product.min_stock if product else 0 }}"></div>
-<div class="col-md-3"><label class="form-label">Status</label><select class="form-select" name="active"><option value="1" {% if not product or product.active %}selected{% endif %}>Ativo</option><option value="0" {% if product and not product.active %}selected{% endif %}>Inativo</option></select></div>
-<div class="col-12"><button class="btn btn-dark">Salvar produto</button> <a class="btn btn-outline-secondary" href="{{ url_for('products') }}">Cancelar</a></div>
+<div class="mb-4"><h1 class="page-title h2 mb-1">{{ 'Editar produto' if product else 'Novo produto' }}</h1><div class="page-subtitle">{{ 'Atualize as informações do produto.' if product else 'Cadastre um novo item no catálogo.' }}</div></div>
+<div class="card p-4 p-lg-5">
+<form method="post"><div class="row g-3">
+<div class="col-md-6"><label class="form-label fw-semibold">Nome</label><input class="form-control" name="name" value="{{ product.name if product else '' }}" required></div>
+<div class="col-md-3"><label class="form-label fw-semibold">Categoria</label><select class="form-select" name="category">{% for c in ['Roupa','Calçado','Acessório','Outro'] %}<option {% if product and product.category==c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></div>
+<div class="col-md-3"><label class="form-label fw-semibold">Marca</label><input class="form-control" name="brand" value="{{ product.brand if product else '' }}"></div>
+<div class="col-md-4"><label class="form-label fw-semibold">Cor</label><input class="form-control" name="color" value="{{ product.color if product else '' }}"></div>
+<div class="col-md-4"><label class="form-label fw-semibold">Tamanho</label><input class="form-control" name="size" value="{{ product.size if product else '' }}"></div>
+<div class="col-md-4"><label class="form-label fw-semibold">Preço</label><input class="form-control" type="number" step="0.01" name="price" value="{{ product.price if product else 0 }}"></div>
+{% if not product %}<div class="col-md-6"><label class="form-label fw-semibold">Estoque inicial</label><input class="form-control" type="number" min="0" name="stock" value="0"></div>{% endif %}
+<div class="col-md-6"><label class="form-label fw-semibold">Estoque mínimo</label><input class="form-control" type="number" min="0" name="min_stock" value="{{ product.min_stock if product else 0 }}"></div>
+</div>
+<div class="d-flex gap-2 mt-4"><button class="btn btn-success px-4"><i class="bi bi-check-lg me-1"></i> Salvar</button><a class="btn btn-light border" href="{{ url_for('products') }}">Cancelar</a></div>
 </form></div>
 {% endblock %}
