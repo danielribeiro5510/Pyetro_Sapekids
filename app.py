@@ -3,9 +3,11 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
 from functools import wraps
 from datetime import datetime
+from zoneinfo import ZoneInfo
 import os
 
 app = Flask(__name__)
+TZ = ZoneInfo("America/Sao_Paulo")
 app.secret_key = os.environ.get("SECRET_KEY", "dev-only-change-this-secret")
 DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "loja.db")
 
@@ -209,7 +211,7 @@ def new_product():
             float(request.form.get("price") or 0),
             stock,
             int(request.form.get("min_stock") or 0),
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
         )
 
         conn = db()
@@ -232,7 +234,7 @@ def new_product():
                 "ENTRADA",
                 stock,
                 "Estoque inicial",
-                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
             ))
 
         conn.commit()
@@ -348,7 +350,7 @@ def stock(product_id):
                 movement_type,
                 quantity,
                 note,
-                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
             ))
 
             conn.commit()
@@ -512,7 +514,7 @@ def new_sale():
                     total += subtotal
                     checked.append((product, item["quantity"], unit_price, subtotal))
 
-                now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                now = datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
                 cur = conn.execute(
                     """INSERT INTO sales (total, payment_method, username, created_at)
                        VALUES (?, ?, ?, ?)""",
@@ -584,15 +586,15 @@ def sale_detail(sale_id):
 @login_required
 def reports():
     try:
-        month = int(request.args.get("month") or datetime.now().month)
-        year = int(request.args.get("year") or datetime.now().year)
+        month = int(request.args.get("month") or datetime.now(TZ).month)
+        year = int(request.args.get("year") or datetime.now(TZ).year)
     except ValueError:
-        month, year = datetime.now().month, datetime.now().year
+        month, year = datetime.now(TZ).month, datetime.now(TZ).year
 
     if not 1 <= month <= 12:
-        month = datetime.now().month
+        month = datetime.now(TZ).month
     if not 2000 <= year <= 2100:
-        year = datetime.now().year
+        year = datetime.now(TZ).year
 
     period = f"{year:04d}-{month:02d}"
     conn = db()
@@ -642,7 +644,7 @@ def reports():
     months = [(1,"Janeiro"),(2,"Fevereiro"),(3,"Março"),(4,"Abril"),
               (5,"Maio"),(6,"Junho"),(7,"Julho"),(8,"Agosto"),
               (9,"Setembro"),(10,"Outubro"),(11,"Novembro"),(12,"Dezembro")]
-    years = list(range(datetime.now().year - 5, datetime.now().year + 1))
+    years = list(range(datetime.now(TZ).year - 5, datetime.now(TZ).year + 1))
 
     return render_template(
         "reports.html", month=month, year=year, months=months, years=years,
