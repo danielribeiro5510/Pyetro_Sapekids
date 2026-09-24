@@ -373,6 +373,9 @@ def admin_dashboard():
         low_stock=low_stock,
         total_sales=total_sales,
         total_revenue=float(total_revenue or 0),
+        # Nomes esperados pelo template atual do painel ADM
+        sales_count=total_sales,
+        revenue=float(total_revenue or 0),
         total_users=total_users,
         movements=movements
     )
