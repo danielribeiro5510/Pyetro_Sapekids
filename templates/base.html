@@ -3,38 +3,103 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Pyetro Sapekids</title>
+<title>{% block title %}Pyetro Sapekids{% endblock %}</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 <style>
-body{background:#f5f6fa}.navbar-brand{font-weight:700}.card{border:0;box-shadow:0 2px 10px #00000012}.table{vertical-align:middle}
-.metric{font-size:1.8rem;font-weight:700}.muted{color:#6c757d}
+:root{
+  --primary:#6c63ff;
+  --primary-dark:#5148e5;
+  --pink:#ff6b9a;
+  --bg:#f6f7fb;
+  --text:#202332;
+  --muted:#72798a;
+  --border:#e9ebf2;
+  --success:#22a06b;
+  --danger:#e5484d;
+  --warning:#d98b00;
+}
+body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+.topbar{background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:1030}
+.brand{font-weight:800;color:var(--text);text-decoration:none;font-size:1.08rem}
+.brand img{width:42px;height:42px;object-fit:contain;border-radius:12px;background:#111;padding:3px}
+.nav-link.app-link{color:#5d6474!important;border-radius:10px;padding:.55rem .75rem;font-weight:600;font-size:.9rem}
+.nav-link.app-link:hover,.nav-link.app-link.active{background:#f0efff;color:var(--primary)!important}
+.user-pill{background:#f5f5fb;border:1px solid var(--border);border-radius:999px;padding:.45rem .7rem;font-size:.82rem;font-weight:600}
+main{max-width:1240px}
+.page-title{font-weight:800;letter-spacing:-.03em}
+.page-subtitle{color:var(--muted)}
+.card{border:1px solid var(--border);border-radius:18px;box-shadow:0 8px 28px rgba(33,38,64,.06)}
+.metric-card{position:relative;overflow:hidden}
+.metric-icon{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-size:1.25rem}
+.metric-value{font-size:2rem;font-weight:800;letter-spacing:-.04em}
+.metric-label{color:var(--muted);font-size:.86rem;font-weight:600}
+.section-title{font-weight:750}
+.table{vertical-align:middle}
+.table thead th{color:#73798a;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border)}
+.table tbody td{border-color:#f0f1f5}
+.table-hover tbody tr:hover{background:#fafaff}
+.btn{border-radius:10px;font-weight:650}
+.btn-primary{background:var(--primary);border-color:var(--primary)}
+.btn-primary:hover{background:var(--primary-dark);border-color:var(--primary-dark)}
+.btn-success{background:var(--success);border-color:var(--success)}
+.badge-soft{padding:.45rem .65rem;border-radius:999px;font-weight:700}
+.badge-entry{background:#e9f8f1;color:#168457}
+.badge-exit{background:#fff0f0;color:#c83a3f}
+.search-box{border-radius:12px;border:1px solid var(--border);padding:.75rem 1rem}
+.empty-state{padding:2.5rem 1rem;color:var(--muted);text-align:center}
+.alert{border-radius:12px;border:0}
+.form-control,.form-select{border-radius:10px;border-color:#dfe2ea;padding:.7rem .85rem}
+.form-control:focus,.form-select:focus{border-color:#a8a3ff;box-shadow:0 0 0 .2rem rgba(108,99,255,.12)}
+.sale-total{font-size:2.25rem;font-weight:850;letter-spacing:-.04em}
+.stat-accent{position:absolute;right:-25px;bottom:-35px;width:110px;height:110px;border-radius:50%;opacity:.12}
+.footer-note{color:#969bab;font-size:.78rem}
+@media(max-width:991px){
+  .desktop-user{display:none}
+  .nav-scroll{overflow-x:auto;flex-wrap:nowrap!important}
+}
 </style>
 </head>
 <body>
-<nav class="navbar navbar-dark bg-dark">
-<div class="container">
-<a class="navbar-brand d-flex align-items-center" href="{{ url_for('dashboard') }}">
-    <img src="{{ url_for('logo') }}" height="45" class="me-2">
-    Pyetro Sapekids
-</a>
-<div class="d-flex gap-1 flex-wrap">
-{% if session.get('user_id') %}
-<a class="btn btn-outline-light btn-sm" href="{{ url_for('dashboard') }}">Dashboard</a>
-<a class="btn btn-outline-light btn-sm" href="{{ url_for('products') }}">Produtos</a>
-<a class="btn btn-outline-light btn-sm" href="{{ url_for('new_sale') }}">Nova venda</a>
-<a class="btn btn-outline-light btn-sm" href="{{ url_for('sales') }}">Vendas</a>
-<a class="btn btn-outline-light btn-sm" href="{{ url_for('reports') }}">Relatórios</a>
-<a class="btn btn-outline-light btn-sm" href="{{ url_for('movements') }}">Movimentações</a>
-<a class="btn btn-danger btn-sm" href="{{ url_for('logout') }}">Sair</a>
-{% endif %}
-</div>
+<nav class="topbar">
+<div class="container-fluid px-3 px-lg-4 py-2">
+  <div class="d-flex align-items-center justify-content-between gap-3">
+    <a class="brand d-flex align-items-center gap-2" href="{{ url_for('dashboard') }}">
+      <img src="{{ url_for('logo') }}" alt="Pyetro Sapekids">
+      <span>Pyetro <span style="color:var(--primary)">Sapekids</span></span>
+    </a>
+    {% if session.get('user_id') %}
+    <div class="d-flex align-items-center gap-2">
+      <div class="desktop-user user-pill"><i class="bi bi-person-circle me-1"></i>{{ session.get('username') }}</div>
+      <a class="btn btn-outline-danger btn-sm" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right"></i> Sair</a>
+    </div>
+    {% endif %}
+  </div>
+  {% if session.get('user_id') %}
+  <div class="d-flex gap-1 mt-2 nav-scroll">
+    <a class="nav-link app-link" href="{{ url_for('dashboard') }}"><i class="bi bi-grid-1x2-fill me-1"></i>Dashboard</a>
+    <a class="nav-link app-link" href="{{ url_for('products') }}"><i class="bi bi-box-seam me-1"></i>Produtos</a>
+    <a class="nav-link app-link" href="{{ url_for('new_sale') }}"><i class="bi bi-cart-plus me-1"></i>Nova venda</a>
+    <a class="nav-link app-link" href="{{ url_for('sales') }}"><i class="bi bi-receipt me-1"></i>Vendas</a>
+    <a class="nav-link app-link" href="{{ url_for('reports') }}"><i class="bi bi-bar-chart-fill me-1"></i>Relatórios</a>
+    <a class="nav-link app-link" href="{{ url_for('movements') }}"><i class="bi bi-arrow-left-right me-1"></i>Movimentações</a>
+  </div>
+  {% endif %}
 </div>
 </nav>
-<main class="container py-4">
+
+<main class="container-fluid px-3 px-lg-4 py-4">
 {% with messages = get_flashed_messages(with_categories=true) %}
-{% for category, message in messages %}<div class="alert alert-{{ category }}">{{ message }}</div>{% endfor %}
+{% for category, message in messages %}
+<div class="alert alert-{{ category }} d-flex align-items-center gap-2 shadow-sm">
+  <i class="bi {% if category == 'success' %}bi-check-circle-fill{% elif category == 'danger' %}bi-exclamation-triangle-fill{% else %}bi-info-circle-fill{% endif %}"></i>
+  <span>{{ message }}</span>
+</div>
+{% endfor %}
 {% endwith %}
 {% block content %}{% endblock %}
+<div class="text-center footer-note mt-4">Pyetro Sapekids · Gestão da loja</div>
 </main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
