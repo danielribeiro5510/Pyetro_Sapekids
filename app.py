@@ -1,0 +1,655 @@
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file
+from werkzeug.security import generate_password_hash, check_password_hash
+import sqlite3
+from functools import wraps
+from datetime import datetime
+import os
+
+app = Flask(__name__)
+app.secret_key = "TROQUE-ESTA-CHAVE-SECRETA"
+DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "loja.db")
+
+
+def db():
+    conn = sqlite3.connect(DB)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def init_db():
+    conn = db()
+
+    conn.executescript("""
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'admin'
+    );
+
+    CREATE TABLE IF NOT EXISTS products (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        category TEXT NOT NULL,
+        brand TEXT,
+        color TEXT,
+        size TEXT,
+        price REAL NOT NULL DEFAULT 0,
+        stock INTEGER NOT NULL DEFAULT 0,
+        min_stock INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS movements (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        product_id INTEGER NOT NULL,
+        type TEXT NOT NULL,
+        quantity INTEGER NOT NULL,
+        note TEXT,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY(product_id) REFERENCES products(id)
+    );
+    CREATE TABLE IF NOT EXISTS sales (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        total REAL NOT NULL DEFAULT 0,
+        payment_method TEXT NOT NULL,
+        username TEXT NOT NULL,
+        created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS sale_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sale_id INTEGER NOT NULL,
+        product_id INTEGER NOT NULL,
+        quantity INTEGER NOT NULL,
+        unit_price REAL NOT NULL,
+        subtotal REAL NOT NULL,
+        FOREIGN KEY(sale_id) REFERENCES sales(id),
+        FOREIGN KEY(product_id) REFERENCES products(id)
+    );
+    """)
+
+    admin = conn.execute(
+        "SELECT id FROM users WHERE username = ?",
+        ("admin",)
+    ).fetchone()
+
+    if not admin:
+        senha = generate_password_hash("admin123")
+        conn.execute(
+            "INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
+            ("admin", senha, "admin")
+        )
+
+    conn.commit()
+    conn.close()
+
+
+def login_required(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if "user_id" not in session:
+            return redirect(url_for("login"))
+        return fn(*args, **kwargs)
+    return wrapper
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form["username"].strip()
+        password = request.form["password"]
+
+        conn = db()
+        user = conn.execute(
+            "SELECT * FROM users WHERE username = ?",
+            (username,)
+        ).fetchone()
+        conn.close()
+
+        if user and check_password_hash(user["password"], password):
+            session["user_id"] = user["id"]
+            session["username"] = user["username"]
+            return redirect(url_for("dashboard"))
+
+        flash("Usuário ou senha inválidos.", "danger")
+
+    return render_template("login.html")
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
+
+@app.route("/")
+@login_required
+def dashboard():
+    conn = db()
+
+    total_products = conn.execute(
+        "SELECT COUNT(*) c FROM products"
+    ).fetchone()["c"]
+
+    total_stock = conn.execute(
+        "SELECT COALESCE(SUM(stock), 0) s FROM products"
+    ).fetchone()["s"]
+
+    low_stock = conn.execute(
+        "SELECT COUNT(*) c FROM products WHERE stock <= min_stock"
+    ).fetchone()["c"]
+
+    movements = conn.execute("""
+        SELECT m.*, p.name
+        FROM movements m
+        JOIN products p ON p.id = m.product_id
+        ORDER BY m.id DESC
+        LIMIT 10
+    """).fetchall()
+
+    conn.close()
+
+    return render_template(
+        "dashboard.html",
+        total_products=total_products,
+        total_stock=total_stock,
+        low_stock=low_stock,
+        movements=movements
+    )
+
+
+@app.route("/products")
+@login_required
+def products():
+    search = request.args.get("search", "").strip()
+    conn = db()
+
+    if search:
+        term = f"%{search}%"
+        rows = conn.execute("""
+            SELECT * FROM products
+            WHERE name LIKE ?
+               OR brand LIKE ?
+               OR color LIKE ?
+               OR size LIKE ?
+            ORDER BY id DESC
+        """, (term, term, term, term)).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM products ORDER BY id DESC"
+        ).fetchall()
+
+    conn.close()
+    return render_template("products.html", products=rows, search=search)
+
+
+@app.route("/products/new", methods=["GET", "POST"])
+@login_required
+def new_product():
+    if request.method == "POST":
+        stock = int(request.form.get("stock") or 0)
+
+        data = (
+            request.form["name"].strip(),
+            request.form["category"],
+            request.form.get("brand", "").strip(),
+            request.form.get("color", "").strip(),
+            request.form.get("size", "").strip(),
+            float(request.form.get("price") or 0),
+            stock,
+            int(request.form.get("min_stock") or 0),
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        )
+
+        conn = db()
+
+        cur = conn.execute("""
+            INSERT INTO products
+            (name, category, brand, color, size, price, stock, min_stock, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, data)
+
+        product_id = cur.lastrowid
+
+        if stock > 0:
+            conn.execute("""
+                INSERT INTO movements
+                (product_id, type, quantity, note, created_at)
+                VALUES (?, ?, ?, ?, ?)
+            """, (
+                product_id,
+                "ENTRADA",
+                stock,
+                "Estoque inicial",
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            ))
+
+        conn.commit()
+        conn.close()
+
+        flash("Produto cadastrado com sucesso.", "success")
+        return redirect(url_for("products"))
+
+    return render_template("product_form.html", product=None)
+
+
+@app.route("/products/<int:product_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_product(product_id):
+    conn = db()
+    product = conn.execute(
+        "SELECT * FROM products WHERE id = ?",
+        (product_id,)
+    ).fetchone()
+
+    if not product:
+        conn.close()
+        return "Produto não encontrado", 404
+
+    if request.method == "POST":
+        conn.execute("""
+            UPDATE products
+            SET name = ?, category = ?, brand = ?, color = ?, size = ?,
+                price = ?, min_stock = ?
+            WHERE id = ?
+        """, (
+            request.form["name"].strip(),
+            request.form["category"],
+            request.form.get("brand", "").strip(),
+            request.form.get("color", "").strip(),
+            request.form.get("size", "").strip(),
+            float(request.form.get("price") or 0),
+            int(request.form.get("min_stock") or 0),
+            product_id
+        ))
+
+        conn.commit()
+        conn.close()
+
+        flash("Produto atualizado.", "success")
+        return redirect(url_for("products"))
+
+    conn.close()
+    return render_template("product_form.html", product=product)
+
+
+@app.post("/products/<int:product_id>/delete")
+@login_required
+def delete_product(product_id):
+    conn = db()
+    conn.execute(
+        "DELETE FROM movements WHERE product_id = ?",
+        (product_id,)
+    )
+    conn.execute(
+        "DELETE FROM products WHERE id = ?",
+        (product_id,)
+    )
+    conn.commit()
+    conn.close()
+
+    flash("Produto removido.", "success")
+    return redirect(url_for("products"))
+
+
+@app.route("/stock/<int:product_id>", methods=["GET", "POST"])
+@login_required
+def stock(product_id):
+    conn = db()
+
+    product = conn.execute(
+        "SELECT * FROM products WHERE id = ?",
+        (product_id,)
+    ).fetchone()
+
+    if not product:
+        conn.close()
+        return "Produto não encontrado", 404
+
+    if request.method == "POST":
+        movement_type = request.form["type"]
+        quantity = int(request.form["quantity"])
+        note = request.form.get("note", "").strip()
+
+        if quantity <= 0:
+            flash("A quantidade deve ser maior que zero.", "danger")
+
+        elif movement_type == "SAIDA" and quantity > product["stock"]:
+            flash("Estoque insuficiente para essa saída.", "danger")
+
+        else:
+            if movement_type == "ENTRADA":
+                new_stock = product["stock"] + quantity
+            else:
+                new_stock = product["stock"] - quantity
+
+            conn.execute(
+                "UPDATE products SET stock = ? WHERE id = ?",
+                (new_stock, product_id)
+            )
+
+            conn.execute("""
+                INSERT INTO movements
+                (product_id, type, quantity, note, created_at)
+                VALUES (?, ?, ?, ?, ?)
+            """, (
+                product_id,
+                movement_type,
+                quantity,
+                note,
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            ))
+
+            conn.commit()
+            conn.close()
+
+            flash(f"{movement_type.title()} registrada com sucesso.", "success")
+            return redirect(url_for("stock", product_id=product_id))
+
+    movements = conn.execute("""
+        SELECT * FROM movements
+        WHERE product_id = ?
+        ORDER BY id DESC
+    """, (product_id,)).fetchall()
+
+    conn.close()
+
+    return render_template(
+        "stock.html",
+        product=product,
+        movements=movements
+    )
+
+
+@app.route("/movements")
+@login_required
+def movements():
+    conn = db()
+
+    rows = conn.execute("""
+        SELECT m.*, p.name
+        FROM movements m
+        JOIN products p ON p.id = m.product_id
+        ORDER BY m.id DESC
+    """).fetchall()
+
+    conn.close()
+
+    return render_template(
+        "movements.html",
+        movements=rows
+    )
+
+
+
+
+@app.route("/sales")
+@login_required
+def sales():
+    conn = db()
+    rows = conn.execute("""
+        SELECT s.*, COUNT(si.id) AS item_count
+        FROM sales s
+        LEFT JOIN sale_items si ON si.sale_id = s.id
+        GROUP BY s.id
+        ORDER BY s.id DESC
+    """).fetchall()
+    conn.close()
+    return render_template("sales.html", sales=rows)
+
+
+@app.route("/sales/new", methods=["GET", "POST"])
+@login_required
+def new_sale():
+    cart = session.get("sale_cart", [])
+
+    if request.method == "POST":
+        action = request.form.get("action")
+
+        if action == "clear":
+            session.pop("sale_cart", None)
+            flash("Venda limpa.", "info")
+            return redirect(url_for("new_sale"))
+
+        if action == "add":
+            try:
+                product_id = int(request.form["product_id"])
+                quantity = int(request.form.get("quantity") or 0)
+            except (ValueError, TypeError):
+                flash("Selecione um produto e informe uma quantidade válida.", "danger")
+                return redirect(url_for("new_sale"))
+
+            if quantity <= 0:
+                flash("A quantidade deve ser maior que zero.", "danger")
+                return redirect(url_for("new_sale"))
+
+            conn = db()
+            product = conn.execute(
+                "SELECT * FROM products WHERE id = ?", (product_id,)
+            ).fetchone()
+            conn.close()
+
+            if not product:
+                flash("Produto não encontrado.", "danger")
+                return redirect(url_for("new_sale"))
+
+            existing_qty = next((i["quantity"] for i in cart if i["product_id"] == product_id), 0)
+            if existing_qty + quantity > product["stock"]:
+                flash(f"Estoque insuficiente. Disponível: {product['stock']}.", "danger")
+                return redirect(url_for("new_sale"))
+
+            found = False
+            for item in cart:
+                if item["product_id"] == product_id:
+                    item["quantity"] += quantity
+                    found = True
+                    break
+
+            if not found:
+                cart.append({
+                    "product_id": product["id"],
+                    "name": product["name"],
+                    "category": product["category"],
+                    "brand": product["brand"] or "",
+                    "color": product["color"] or "",
+                    "size": product["size"] or "",
+                    "quantity": quantity,
+                    "unit_price": float(product["price"])
+                })
+
+            session["sale_cart"] = cart
+            return redirect(url_for("new_sale"))
+
+        if action == "remove":
+            try:
+                product_id = int(request.form["product_id"])
+                cart = [i for i in cart if i["product_id"] != product_id]
+                session["sale_cart"] = cart
+            except (ValueError, TypeError):
+                pass
+            return redirect(url_for("new_sale"))
+
+        if action == "finish":
+            if not cart:
+                flash("Adicione pelo menos um produto à venda.", "danger")
+                return redirect(url_for("new_sale"))
+
+            payment_method = request.form.get("payment_method", "").strip()
+            allowed = {"PIX", "Dinheiro", "Cartão de débito", "Cartão de crédito"}
+            if payment_method not in allowed:
+                flash("Selecione uma forma de pagamento.", "danger")
+                return redirect(url_for("new_sale"))
+
+            conn = db()
+            try:
+                checked = []
+                total = 0.0
+
+                for item in cart:
+                    product = conn.execute(
+                        "SELECT * FROM products WHERE id = ?", (item["product_id"],)
+                    ).fetchone()
+                    if not product:
+                        raise ValueError(f"Produto '{item['name']}' não existe mais.")
+                    if item["quantity"] > product["stock"]:
+                        raise ValueError(
+                            f"Estoque insuficiente para '{product['name']}'. "
+                            f"Disponível: {product['stock']}."
+                        )
+                    unit_price = float(product["price"])
+                    subtotal = unit_price * item["quantity"]
+                    total += subtotal
+                    checked.append((product, item["quantity"], unit_price, subtotal))
+
+                now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                cur = conn.execute(
+                    """INSERT INTO sales (total, payment_method, username, created_at)
+                       VALUES (?, ?, ?, ?)""",
+                    (total, payment_method, session.get("username", "admin"), now)
+                )
+                sale_id = cur.lastrowid
+
+                for product, quantity, unit_price, subtotal in checked:
+                    conn.execute(
+                        """INSERT INTO sale_items
+                           (sale_id, product_id, quantity, unit_price, subtotal)
+                           VALUES (?, ?, ?, ?, ?)""",
+                        (sale_id, product["id"], quantity, unit_price, subtotal)
+                    )
+                    conn.execute(
+                        "UPDATE products SET stock = ? WHERE id = ?",
+                        (product["stock"] - quantity, product["id"])
+                    )
+                    conn.execute(
+                        """INSERT INTO movements
+                           (product_id, type, quantity, note, created_at)
+                           VALUES (?, ?, ?, ?, ?)""",
+                        (product["id"], "SAIDA", quantity, f"Venda #{sale_id}", now)
+                    )
+
+                conn.commit()
+                session.pop("sale_cart", None)
+                flash(f"Venda #{sale_id} finalizada com sucesso.", "success")
+                return redirect(url_for("sale_detail", sale_id=sale_id))
+            except Exception as exc:
+                conn.rollback()
+                flash(str(exc), "danger")
+                return redirect(url_for("new_sale"))
+            finally:
+                conn.close()
+
+    conn = db()
+    products = conn.execute(
+        """SELECT * FROM products WHERE stock > 0
+           ORDER BY name, brand, color, size"""
+    ).fetchall()
+    conn.close()
+
+    total = sum(i["quantity"] * i["unit_price"] for i in cart)
+    return render_template("new_sale.html", products=products, cart=cart, total=total)
+
+
+@app.route("/sales/<int:sale_id>")
+@login_required
+def sale_detail(sale_id):
+    conn = db()
+    sale = conn.execute("SELECT * FROM sales WHERE id = ?", (sale_id,)).fetchone()
+    if not sale:
+        conn.close()
+        return "Venda não encontrada", 404
+
+    items = conn.execute("""
+        SELECT si.*, p.name, p.category, p.brand, p.color, p.size
+        FROM sale_items si
+        JOIN products p ON p.id = si.product_id
+        WHERE si.sale_id = ?
+        ORDER BY si.id
+    """, (sale_id,)).fetchall()
+    conn.close()
+    return render_template("sale_detail.html", sale=sale, items=items)
+
+
+@app.route("/reports", methods=["GET"])
+@login_required
+def reports():
+    try:
+        month = int(request.args.get("month") or datetime.now().month)
+        year = int(request.args.get("year") or datetime.now().year)
+    except ValueError:
+        month, year = datetime.now().month, datetime.now().year
+
+    if not 1 <= month <= 12:
+        month = datetime.now().month
+    if not 2000 <= year <= 2100:
+        year = datetime.now().year
+
+    period = f"{year:04d}-{month:02d}"
+    conn = db()
+
+    summary = conn.execute("""
+        SELECT COUNT(*) AS sales_count, COALESCE(SUM(total), 0) AS revenue
+        FROM sales WHERE substr(created_at, 1, 7) = ?
+    """, (period,)).fetchone()
+
+    items = conn.execute("""
+        SELECT COALESCE(SUM(quantity), 0) AS items_sold
+        FROM sale_items si JOIN sales s ON s.id = si.sale_id
+        WHERE substr(s.created_at, 1, 7) = ?
+    """, (period,)).fetchone()
+
+    payments = conn.execute("""
+        SELECT payment_method, COUNT(*) AS sales_count, COALESCE(SUM(total), 0) AS total
+        FROM sales WHERE substr(created_at, 1, 7) = ?
+        GROUP BY payment_method ORDER BY total DESC
+    """, (period,)).fetchall()
+
+    top_products = conn.execute("""
+        SELECT p.name, COALESCE(p.brand,'') brand, COALESCE(p.color,'') color,
+               COALESCE(p.size,'') size, SUM(si.quantity) quantity,
+               SUM(si.subtotal) total
+        FROM sale_items si
+        JOIN sales s ON s.id = si.sale_id
+        JOIN products p ON p.id = si.product_id
+        WHERE substr(s.created_at, 1, 7) = ?
+        GROUP BY p.id, p.name, p.brand, p.color, p.size
+        ORDER BY quantity DESC, total DESC LIMIT 10
+    """, (period,)).fetchall()
+
+    monthly = conn.execute("""
+        SELECT substr(created_at,1,7) period, COUNT(*) sales_count,
+               COALESCE(SUM(total),0) total
+        FROM sales WHERE substr(created_at,1,4) = ?
+        GROUP BY substr(created_at,1,7) ORDER BY period
+    """, (str(year),)).fetchall()
+    conn.close()
+
+    revenue = float(summary["revenue"] or 0)
+    sales_count = int(summary["sales_count"] or 0)
+    items_sold = int(items["items_sold"] or 0)
+    ticket_average = revenue / sales_count if sales_count else 0
+
+    months = [(1,"Janeiro"),(2,"Fevereiro"),(3,"Março"),(4,"Abril"),
+              (5,"Maio"),(6,"Junho"),(7,"Julho"),(8,"Agosto"),
+              (9,"Setembro"),(10,"Outubro"),(11,"Novembro"),(12,"Dezembro")]
+    years = list(range(datetime.now().year - 5, datetime.now().year + 1))
+
+    return render_template(
+        "reports.html", month=month, year=year, months=months, years=years,
+        revenue=revenue, sales_count=sales_count, items_sold=items_sold,
+        ticket_average=ticket_average, payments=payments,
+        top_products=top_products, monthly=monthly
+    )
+
+
+@app.route("/logo.jpg")
+def logo():
+    logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "logo.jpg")
+    if not os.path.isfile(logo_path):
+        return "Logo não encontrado: " + logo_path, 404
+    return send_file(logo_path, mimetype="image/jpeg")
+
+
+if __name__ == "__main__":
+    init_db()
+    app.run(host="0.0.0.0", port=5000, debug=True)

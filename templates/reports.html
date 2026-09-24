@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>📊 Relatório de vendas</h2>
+</div>
+
+<div class="card p-4 mb-4">
+  <form method="get" class="row g-3 align-items-end">
+    <div class="col-md-4">
+      <label class="form-label">Mês</label>
+      <select class="form-select" name="month">
+        {% for number, name in months %}
+        <option value="{{ number }}" {% if number == month %}selected{% endif %}>{{ name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Ano</label>
+      <select class="form-select" name="year">
+        {% for y in years %}
+        <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <button class="btn btn-dark w-100">Gerar relatório</button>
+    </div>
+  </form>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card p-4">
+      <div class="muted">Faturamento</div>
+      <div class="metric">R$ {{ '%.2f'|format(revenue) }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card p-4">
+      <div class="muted">Vendas</div>
+      <div class="metric">{{ sales_count }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card p-4">
+      <div class="muted">Itens vendidos</div>
+      <div class="metric">{{ items_sold }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card p-4">
+      <div class="muted">Ticket médio</div>
+      <div class="metric">R$ {{ '%.2f'|format(ticket_average) }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-6">
+    <div class="card p-4 h-100">
+      <h4>💳 Por forma de pagamento</h4>
+      <table class="table mt-3">
+        <thead><tr><th>Pagamento</th><th>Vendas</th><th>Total</th></tr></thead>
+        <tbody>
+        {% for p in payments %}
+          <tr><td>{{ p.payment_method }}</td><td>{{ p.sales_count }}</td><td>R$ {{ '%.2f'|format(p.total) }}</td></tr>
+        {% else %}
+          <tr><td colspan="3" class="text-center text-muted">Nenhuma venda neste mês.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card p-4 h-100">
+      <h4>🏆 Produtos mais vendidos</h4>
+      <table class="table mt-3">
+        <thead><tr><th>Produto</th><th>Qtd.</th><th>Total</th></tr></thead>
+        <tbody>
+        {% for p in top_products %}
+          <tr>
+            <td>
+              {{ p.name }}
+              {% if p.brand %}<br><small>{{ p.brand }}{% if p.color %} · {{ p.color }}{% endif %}{% if p.size %} · Tam. {{ p.size }}{% endif %}</small>{% endif %}
+            </td>
+            <td>{{ p.quantity }}</td>
+            <td>R$ {{ '%.2f'|format(p.total) }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="3" class="text-center text-muted">Nenhuma venda neste mês.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="card p-4 mt-4">
+  <h4>📅 Vendas por mês em {{ year }}</h4>
+  <table class="table mt-3">
+    <thead><tr><th>Mês</th><th>Vendas</th><th>Faturamento</th></tr></thead>
+    <tbody>
+    {% for row in monthly %}
+      <tr><td>{{ row.period }}</td><td>{{ row.sales_count }}</td><td>R$ {{ '%.2f'|format(row.total) }}</td></tr>
+    {% else %}
+      <tr><td colspan="3" class="text-center text-muted">Nenhuma venda registrada em {{ year }}.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

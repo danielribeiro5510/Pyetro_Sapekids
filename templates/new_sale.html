@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>🛒 Nova venda</h2>
+  {% if cart %}<form method="post" class="m-0"><input type="hidden" name="action" value="clear"><button class="btn btn-outline-danger">Limpar venda</button></form>{% endif %}
+</div>
+
+<div class="row g-4">
+<div class="col-lg-7">
+<div class="card p-4">
+<h4>Adicionar produto</h4>
+<form method="post" class="row g-3">
+<input type="hidden" name="action" value="add">
+<div class="col-12">
+<label class="form-label">Produto</label>
+<select class="form-select" name="product_id" required>
+<option value="">Selecione...</option>
+{% for p in products %}
+<option value="{{ p.id }}">
+{{ p.name }}{% if p.brand %} - {{ p.brand }}{% endif %}{% if p.color %} - {{ p.color }}{% endif %}{% if p.size %} - Tam. {{ p.size }}{% endif %}
+| Estoque: {{ p.stock }} | R$ {{ '%.2f'|format(p.price) }}
+</option>
+{% endfor %}
+</select>
+</div>
+<div class="col-md-4">
+<label class="form-label">Quantidade</label>
+<input class="form-control" type="number" min="1" name="quantity" value="1" required>
+</div>
+<div class="col-md-8 d-flex align-items-end">
+<button class="btn btn-primary w-100">+ Adicionar à venda</button>
+</div>
+</form>
+</div>
+
+<div class="card p-4 mt-4">
+<h4>Itens da venda</h4>
+<div class="table-responsive">
+<table class="table">
+<thead><tr><th>Produto</th><th>Qtd.</th><th>Preço</th><th>Subtotal</th><th></th></tr></thead>
+<tbody>
+{% for item in cart %}
+<tr>
+<td>{{ item.name }}{% if item.color %}<br><small>Cor: {{ item.color }}</small>{% endif %}{% if item.size %}<small> | Tam.: {{ item.size }}</small>{% endif %}</td>
+<td>{{ item.quantity }}</td>
+<td>R$ {{ '%.2f'|format(item.unit_price) }}</td>
+<td>R$ {{ '%.2f'|format(item.quantity * item.unit_price) }}</td>
+<td>
+<form method="post"><input type="hidden" name="action" value="remove"><input type="hidden" name="product_id" value="{{ item.product_id }}"><button class="btn btn-sm btn-outline-danger">Remover</button></form>
+</td>
+</tr>
+{% else %}
+<tr><td colspan="5" class="text-center text-muted">Nenhum produto adicionado.</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</div>
+</div>
+
+<div class="col-lg-5">
+<div class="card p-4">
+<h4>Finalizar venda</h4>
+<div class="d-flex justify-content-between fs-4 mb-4"><span>Total</span><strong>R$ {{ '%.2f'|format(total) }}</strong></div>
+<form method="post">
+<input type="hidden" name="action" value="finish">
+<label class="form-label">Forma de pagamento</label>
+<select class="form-select mb-3" name="payment_method" required {% if not cart %}disabled{% endif %}>
+<option value="">Selecione...</option>
+<option>PIX</option>
+<option>Dinheiro</option>
+<option>Cartão de débito</option>
+<option>Cartão de crédito</option>
+</select>
+<button class="btn btn-success btn-lg w-100" {% if not cart %}disabled{% endif %}>✓ Finalizar venda</button>
+</form>
+</div>
+</div>
+</div>
+{% endblock %}
