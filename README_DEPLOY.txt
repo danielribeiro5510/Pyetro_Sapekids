@@ -1,18 +1,20 @@
-PYETRO SAPEKIDS - PACOTE CORRIGIDO
+PYETRO SAPEKIDS - CORREÇÃO DEFINITIVA DE SESSÃO
 
-Este pacote mantém a interface atual e corrige a inicialização do PostgreSQL/Neon.
+Esta versão corrige a identificação do usuário entre as páginas.
 
-CORREÇÃO PRINCIPAL:
-- Removida a segunda tentativa de ALTER TABLE users ADD COLUMN active.
-- No PostgreSQL, uma tentativa de ALTER que falha aborta a transação e fazia o Render encerrar com:
-  current transaction is aborted, commands ignored until end of transaction block
-- Agora a coluna active é verificada antes do ALTER no bloco PostgreSQL, sem provocar transação abortada.
+A sessão guarda somente o ID do usuário. Nome e perfil são consultados diretamente no banco Neon em cada requisição. Também foi desativado o cache das páginas autenticadas para evitar que o navegador mostre uma tela antiga de outro usuário.
 
-NÃO APAGUE NEM RECRIE O BANCO NEON.
+NÃO apague nem recrie o banco Neon.
 
 Deploy:
-1. Substitua os arquivos do projeto pelo conteúdo deste ZIP.
+1. Substitua os arquivos do projeto pelos arquivos deste pacote.
 2. Faça commit/push para o GitHub.
-3. O Render fará novo deploy.
-4. Mantenha DATABASE_URL e SECRET_KEY no Render.
-5. Não execute DROP TABLE nem recrie o banco.
+3. Aguarde o Render concluir.
+4. Saia do sistema, feche abas antigas e entre novamente com cada usuário.
+
+Teste esperado:
+- teste -> teste · Operador em todas as telas
+- Roberta -> Roberta · Operador
+- admin -> admin · ADM
+
+A interface existente foi preservada.

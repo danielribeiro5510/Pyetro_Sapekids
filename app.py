@@ -270,10 +270,10 @@ def login_required(fn):
 
 @app.before_request
 def refresh_logged_user():
-    """Sincroniza a sessão com o usuário real do banco em toda requisição.
+    """Valida a sessão usando SOMENTE o ID do usuário no banco.
 
-    Isso evita que uma página reutilize um nome/role antigo da sessão.
-    O usuário é sempre identificado pelo user_id gravado no login.
+    Nome e perfil nunca são confiados ao conteúdo antigo do cookie.
+    Isso impede que uma página mostre outro usuário por dados antigos de sessão.
     """
     user_id = session.get("user_id")
     if not user_id:
@@ -284,7 +284,7 @@ def refresh_logged_user():
         conn = db()
         user = conn.execute(
             "SELECT id, username, role, active FROM users WHERE id = ?",
-            (user_id,)
+            (int(user_id),)
         ).fetchone()
     except Exception:
         user = None
@@ -292,44 +292,66 @@ def refresh_logged_user():
         if conn is not None:
             conn.close()
 
-    if not user:
+    if not user or not bool(user["active"]):
         session.clear()
         return None
 
-    # PostgreSQL usa BOOLEAN e SQLite usa 0/1; bool() funciona nos dois.
-    if not bool(user["active"]):
-        session.clear()
-        return None
-
-    session["username"] = user["username"]
-    session["role"] = user["role"]
+    # Guarda apenas o identificador; nome/perfil serão buscados pelo
+    # context processor a cada página.
+    session["user_id"] = int(user["id"])
     return None
+
+
+def get_current_user():
+    """Retorna o usuário atual diretamente do banco."""
+    user_id = session.get("user_id")
+    if not user_id:
+        return None
+
+    conn = db()
+    try:
+        user = conn.execute(
+            "SELECT id, username, role, active FROM users WHERE id = ?",
+            (int(user_id),)
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if not user or not bool(user["active"]):
+        session.clear()
+        return None
+    return user
 
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        username = request.form["username"].strip()
-        password = request.form["password"]
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
 
-        # Remove qualquer sessão anterior antes de iniciar a nova.
+        # Descarta completamente a sessão anterior antes de autenticar.
         session.clear()
 
         conn = db()
-        user = conn.execute(
-            "SELECT * FROM users WHERE username = ?",
-            (username,)
-        ).fetchone()
-        conn.close()
+        try:
+            user = conn.execute(
+                "SELECT * FROM users WHERE LOWER(username) = LOWER(?)",
+                (username,)
+            ).fetchone()
+        finally:
+            conn.close()
 
         if user and not bool(user["active"]):
             flash("Este usuário está desativado. Procure o administrador.", "danger")
             return render_template("login.html")
 
         if user and check_password_hash(user["password"], password):
-            session["user_id"] = user["id"]
-            session["username"] = user["username"]
-            session["role"] = user["role"]
+            # A sessão guarda somente o ID. O nome e o perfil são sempre
+            # recuperados do Neon para cada requisição.
+            session.clear()
+            session["user_id"] = int(user["id"])
+            session.permanent = False
+
             if user["role"] == "admin":
                 return redirect(url_for("admin_dashboard"))
             return redirect(url_for("dashboard"))
@@ -348,9 +370,10 @@ def logout():
 def admin_required(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
-        if "user_id" not in session:
+        user = get_current_user()
+        if not user:
             return redirect(url_for("login"))
-        if session.get("role") != "admin":
+        if user["role"] != "admin":
             flash("Acesso restrito ao administrador.", "danger")
             return redirect(url_for("dashboard"))
         return fn(*args, **kwargs)
@@ -359,11 +382,23 @@ def admin_required(fn):
 
 @app.context_processor
 def inject_user_context():
+    user = get_current_user()
     return {
-        "current_username": session.get("username", ""),
-        "current_role": session.get("role", "operator"),
-        "is_admin": session.get("role") == "admin",
+        "current_username": user["username"] if user else "",
+        "current_role": user["role"] if user else "operator",
+        "is_admin": bool(user and user["role"] == "admin"),
     }
+
+
+@app.after_request
+def prevent_authenticated_page_cache(response):
+    # Evita que o navegador reapresente uma página antiga de outro usuário.
+    if session.get("user_id"):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        response.headers["Vary"] = "Cookie"
+    return response
 
 
 def audit(action, details=""):
@@ -852,14 +887,14 @@ def new_sale():
                         """INSERT INTO sales (total, payment_method, username, created_at)
                            VALUES (?, ?, ?, ?)
                            RETURNING id""",
-                        (total, payment_method, session.get("username", "admin"), now)
+                        (total, payment_method, (get_current_user()["username"] if get_current_user() else "admin"), now)
                     )
                     sale_id = cur.fetchone()["id"]
                 else:
                     cur = conn.execute(
                         """INSERT INTO sales (total, payment_method, username, created_at)
                            VALUES (?, ?, ?, ?)""",
-                        (total, payment_method, session.get("username", "admin"), now)
+                        (total, payment_method, (get_current_user()["username"] if get_current_user() else "admin"), now)
                     )
                     sale_id = cur.lastrowid
 
