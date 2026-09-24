@@ -135,10 +135,15 @@ def init_db():
         );
         """
         conn.executescript(schema)
-        try:
+        # Em bancos PostgreSQL já existentes, a coluna active pode ainda não existir.
+        # Verificamos antes de alterar para não abortar a transação.
+        col = conn.execute(
+            "SELECT 1 FROM information_schema.columns WHERE table_name = ? AND column_name = ?",
+            ("users", "active")
+        ).fetchone()
+        if not col:
             conn.execute("ALTER TABLE users ADD COLUMN active INTEGER NOT NULL DEFAULT 1")
-        except Exception:
-            pass
+        conn.commit()
     else:
         conn.executescript("""
         CREATE TABLE IF NOT EXISTS users (
