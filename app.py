@@ -268,11 +268,52 @@ def login_required(fn):
     return wrapper
 
 
+@app.before_request
+def refresh_logged_user():
+    """Sincroniza a sessão com o usuário real do banco em toda requisição.
+
+    Isso evita que uma página reutilize um nome/role antigo da sessão.
+    O usuário é sempre identificado pelo user_id gravado no login.
+    """
+    user_id = session.get("user_id")
+    if not user_id:
+        return None
+
+    conn = None
+    try:
+        conn = db()
+        user = conn.execute(
+            "SELECT id, username, role, active FROM users WHERE id = ?",
+            (user_id,)
+        ).fetchone()
+    except Exception:
+        user = None
+    finally:
+        if conn is not None:
+            conn.close()
+
+    if not user:
+        session.clear()
+        return None
+
+    # PostgreSQL usa BOOLEAN e SQLite usa 0/1; bool() funciona nos dois.
+    if not bool(user["active"]):
+        session.clear()
+        return None
+
+    session["username"] = user["username"]
+    session["role"] = user["role"]
+    return None
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
         username = request.form["username"].strip()
         password = request.form["password"]
+
+        # Remove qualquer sessão anterior antes de iniciar a nova.
+        session.clear()
 
         conn = db()
         user = conn.execute(
@@ -281,7 +322,7 @@ def login():
         ).fetchone()
         conn.close()
 
-        if user and int(user["active"] or 0) != 1:
+        if user and not bool(user["active"]):
             flash("Este usuário está desativado. Procure o administrador.", "danger")
             return render_template("login.html")
 
