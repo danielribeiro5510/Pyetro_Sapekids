@@ -1,14 +1,16 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import generate_password_hash, check_password_hash
-import sqlite3
 from functools import wraps
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import os
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+from database import db, init_schema, USING_PG, BASE_DIR
+
 ON_RENDER = bool(os.environ.get("RENDER"))
+if ON_RENDER and not USING_PG:
+    raise RuntimeError("Defina a variável de ambiente DATABASE_URL (Neon) no Render.")
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
@@ -22,17 +24,6 @@ if not secret:
 app.secret_key = secret
 app.config["SESSION_COOKIE_SECURE"] = ON_RENDER
 app.config["PREFERRED_URL_SCHEME"] = "https" if ON_RENDER else "http"
-
-DB = os.environ.get("DATABASE_PATH") or os.path.join(BASE_DIR, "loja.db")
-os.makedirs(os.path.dirname(os.path.abspath(DB)) or ".", exist_ok=True)
-
-
-def db():
-    conn = sqlite3.connect(DB, check_same_thread=False, timeout=30)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA foreign_keys=ON")
-    return conn
 
 
 def seed_users(conn):
@@ -63,57 +54,7 @@ def seed_users(conn):
 
 def init_db():
     conn = db()
-
-    conn.executescript("""
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        role TEXT NOT NULL DEFAULT 'admin'
-    );
-
-    CREATE TABLE IF NOT EXISTS products (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        category TEXT NOT NULL,
-        brand TEXT,
-        color TEXT,
-        size TEXT,
-        price REAL NOT NULL DEFAULT 0,
-        stock INTEGER NOT NULL DEFAULT 0,
-        min_stock INTEGER NOT NULL DEFAULT 0,
-        created_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS movements (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        product_id INTEGER NOT NULL,
-        type TEXT NOT NULL,
-        quantity INTEGER NOT NULL,
-        note TEXT,
-        created_at TEXT NOT NULL,
-        FOREIGN KEY(product_id) REFERENCES products(id)
-    );
-    CREATE TABLE IF NOT EXISTS sales (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        total REAL NOT NULL DEFAULT 0,
-        payment_method TEXT NOT NULL,
-        username TEXT NOT NULL,
-        created_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS sale_items (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        sale_id INTEGER NOT NULL,
-        product_id INTEGER NOT NULL,
-        quantity INTEGER NOT NULL,
-        unit_price REAL NOT NULL,
-        subtotal REAL NOT NULL,
-        FOREIGN KEY(sale_id) REFERENCES sales(id),
-        FOREIGN KEY(product_id) REFERENCES products(id)
-    );
-    """)
-
+    init_schema(conn)
     seed_users(conn)
     conn.commit()
     conn.close()
@@ -435,10 +376,9 @@ def movements():
 def sales():
     conn = db()
     rows = conn.execute("""
-        SELECT s.*, COUNT(si.id) AS item_count
+        SELECT s.*,
+               (SELECT COUNT(*) FROM sale_items si WHERE si.sale_id = s.id) AS item_count
         FROM sales s
-        LEFT JOIN sale_items si ON si.sale_id = s.id
-        GROUP BY s.id
         ORDER BY s.id DESC
     """).fetchall()
     conn.close()
@@ -690,7 +630,7 @@ def reports():
 
 @app.route("/logo.jpg")
 def logo():
-    logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "logo.jpg")
+    logo_path = os.path.join(BASE_DIR, "static", "logo.jpg")
     if not os.path.isfile(logo_path):
         return "Logo não encontrado: " + logo_path, 404
     return send_file(logo_path, mimetype="image/jpeg")

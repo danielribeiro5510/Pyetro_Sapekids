@@ -2,19 +2,15 @@ services:
   - type: web
     name: pyetro-sapekids
     runtime: python
-    plan: starter
+    plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 120
-    disk:
-      name: loja-data
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.8"
       - key: SECRET_KEY
         generateValue: true
-      - key: DATABASE_PATH
-        value: /var/data/loja.db
+      - key: DATABASE_URL
+        sync: false
       - key: SEED_USERS
         sync: false
