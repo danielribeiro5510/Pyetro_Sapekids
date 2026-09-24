@@ -81,7 +81,7 @@ def init_db():
             username TEXT UNIQUE NOT NULL,
             password TEXT NOT NULL,
             role TEXT NOT NULL DEFAULT 'admin',
-            active INTEGER NOT NULL DEFAULT 1
+            active BOOLEAN NOT NULL DEFAULT TRUE
         );
 
         CREATE TABLE IF NOT EXISTS products (
@@ -142,7 +142,7 @@ def init_db():
             ("users", "active")
         ).fetchone()
         if not col:
-            conn.execute("ALTER TABLE users ADD COLUMN active INTEGER NOT NULL DEFAULT 1")
+            conn.execute("ALTER TABLE users ADD COLUMN active BOOLEAN NOT NULL DEFAULT TRUE")
         conn.commit()
     else:
         conn.executescript("""
@@ -235,17 +235,18 @@ def init_db():
         if not existente:
             role = "admin" if username.lower() == "admin" else "operator"
             conn.execute(
-                "INSERT INTO users (username, password, role, active) VALUES (?, ?, ?, 1)",
-                (username, generate_password_hash(senha), role)
+                "INSERT INTO users (username, password, role, active) VALUES (?, ?, ?, ?)",
+                (username, generate_password_hash(senha), role, True)
             )
 
     # A conta principal "admin" sempre permanece administradora e ativa.
     conn.execute(
-        "UPDATE users SET role = 'admin', active = 1 WHERE LOWER(username) = 'admin'"
+        "UPDATE users SET role = 'admin', active = ? WHERE LOWER(username) = 'admin'",
+        (True,)
     )
 
     # Corrige registros antigos que não tenham active.
-    conn.execute("UPDATE users SET active = 1 WHERE active IS NULL")
+    conn.execute("UPDATE users SET active = ? WHERE active IS NULL", (True,))
 
     conn.commit()
     conn.close()
@@ -994,8 +995,8 @@ def admin_new_user():
             return render_template("user_form.html", user=None)
 
         conn.execute(
-            "INSERT INTO users (username, password, role, active) VALUES (?, ?, ?, 1)",
-            (username, generate_password_hash(password), role)
+            "INSERT INTO users (username, password, role, active) VALUES (?, ?, ?, ?)",
+            (username, generate_password_hash(password), role, True)
         )
         conn.commit()
         conn.close()
@@ -1086,12 +1087,13 @@ def admin_toggle_user(user_id):
         flash("Você não pode desativar o próprio usuário.", "warning")
         return redirect(url_for("admin_users"))
 
-    new_active = 0 if int(user["active"] or 0) else 1
+    new_active = not bool(user["active"])
 
     # Nunca deixa o sistema ficar sem administrador ativo.
     if new_active == 0 and user["role"] == "admin":
         active_admins = conn.execute(
-            "SELECT COUNT(*) AS c FROM users WHERE role = 'admin' AND active = 1"
+            "SELECT COUNT(*) AS c FROM users WHERE role = 'admin' AND active = ?",
+            (True,)
         ).fetchone()["c"]
         if int(active_admins or 0) <= 1:
             conn.close()
@@ -1145,7 +1147,8 @@ def admin_delete_user(user_id):
 
     if user["role"] == "admin":
         active_admins = conn.execute(
-            "SELECT COUNT(*) AS c FROM users WHERE role = 'admin' AND active = 1"
+            "SELECT COUNT(*) AS c FROM users WHERE role = 'admin' AND active = ?",
+            (True,)
         ).fetchone()["c"]
         if int(active_admins or 0) <= 1:
             conn.close()
