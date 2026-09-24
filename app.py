@@ -199,7 +199,8 @@ def init_db():
         username = username.strip()
         senha = senha.strip()
         if username and senha:
-            usuarios_padrao.append((username, senha, "admin" if username.lower() == "admin" else "operator"))
+            role = "admin" if username.lower() == "admin" else "operator"
+            usuarios_padrao.append((username, senha, role))
 
     for username, senha, role in usuarios_padrao:
         existente = conn.execute(
@@ -220,10 +221,6 @@ def init_db():
                 (generate_password_hash(senha), role, username)
             )
 
-    # Garante a separação de perfis também para usuários que já existiam no Neon.
-    conn.execute("UPDATE users SET role = 'admin' WHERE LOWER(username) = 'admin'")
-    conn.execute("UPDATE users SET role = 'operator' WHERE LOWER(username) <> 'admin'")
-
     conn.commit()
     conn.close()
 
@@ -240,6 +237,18 @@ def login_required(fn):
     def wrapper(*args, **kwargs):
         if "user_id" not in session:
             return redirect(url_for("login"))
+        return fn(*args, **kwargs)
+    return wrapper
+
+
+def admin_required(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if "user_id" not in session:
+            return redirect(url_for("login"))
+        if session.get("role") != "admin":
+            flash("Acesso permitido somente ao administrador.", "danger")
+            return redirect(url_for("dashboard"))
         return fn(*args, **kwargs)
     return wrapper
 
@@ -276,29 +285,16 @@ def logout():
     return redirect(url_for("login"))
 
 
-def admin_required(fn):
-    @wraps(fn)
-    def wrapper(*args, **kwargs):
-        if "user_id" not in session:
-            return redirect(url_for("login"))
-        if session.get("role") != "admin":
-            flash("Acesso restrito ao administrador.", "danger")
-            return redirect(url_for("dashboard"))
-        return fn(*args, **kwargs)
-    return wrapper
-
-
 @app.context_processor
-def inject_user_context():
+def inject_user_permissions():
     return {
-        "current_username": session.get("username", ""),
-        "current_role": session.get("role", "operator"),
-        "is_admin": session.get("role") == "admin",
+        "current_username": session.get("username"),
+        "current_role": session.get("role"),
+        "is_admin": session.get("role") == "admin"
     }
 
 
 @app.route("/admin")
-@login_required
 @admin_required
 def admin_dashboard():
     conn = db()
@@ -306,25 +302,23 @@ def admin_dashboard():
     total_products = conn.execute("SELECT COUNT(*) c FROM products").fetchone()["c"]
     total_stock = conn.execute("SELECT COALESCE(SUM(stock), 0) s FROM products").fetchone()["s"]
     low_stock = conn.execute("SELECT COUNT(*) c FROM products WHERE stock <= min_stock").fetchone()["c"]
-    total_sales = conn.execute("SELECT COUNT(*) c FROM sales").fetchone()["c"]
-    total_revenue = conn.execute("SELECT COALESCE(SUM(total), 0) v FROM sales").fetchone()["v"]
     total_users = conn.execute("SELECT COUNT(*) c FROM users").fetchone()["c"]
-
+    sales_summary = conn.execute("SELECT COUNT(*) c, COALESCE(SUM(total), 0) total FROM sales").fetchone()
     movements = conn.execute("""
         SELECT m.*, p.name
         FROM movements m JOIN products p ON p.id = m.product_id
-        ORDER BY m.id DESC LIMIT 8
+        ORDER BY m.id DESC LIMIT 10
     """).fetchall()
-
     conn.close()
+
     return render_template(
         "admin_dashboard.html",
         total_products=total_products,
         total_stock=total_stock,
         low_stock=low_stock,
-        total_sales=total_sales,
-        total_revenue=float(total_revenue or 0),
         total_users=total_users,
+        sales_count=int(sales_summary["c"] or 0),
+        revenue=float(sales_summary["total"] or 0),
         movements=movements
     )
 
@@ -387,7 +381,12 @@ def products():
         ).fetchall()
 
     conn.close()
-    return render_template("products.html", products=rows, search=search)
+    return render_template(
+        "products.html",
+        products=rows,
+        search=search,
+        is_admin=(session.get("role") == "admin")
+    )
 
 
 @app.route("/products/new", methods=["GET", "POST"])
@@ -489,7 +488,6 @@ def edit_product(product_id):
 
 
 @app.post("/products/<int:product_id>/delete")
-@login_required
 @admin_required
 def delete_product(product_id):
     """Exclui um produto sem quebrar o histórico de vendas."""
@@ -807,6 +805,66 @@ def new_sale():
 
     total = sum(i["quantity"] * i["unit_price"] for i in cart)
     return render_template("new_sale.html", products=products, cart=cart, total=total)
+
+
+@app.post("/sales/<int:sale_id>/delete")
+@admin_required
+def delete_sale(sale_id):
+    """Exclui uma venda e devolve os itens ao estoque. Somente admin."""
+    conn = db()
+
+    try:
+        sale = conn.execute(
+            "SELECT id, total FROM sales WHERE id = ?",
+            (sale_id,)
+        ).fetchone()
+
+        if not sale:
+            flash("Venda não encontrada.", "danger")
+            return redirect(url_for("sales"))
+
+        items = conn.execute(
+            "SELECT product_id, quantity FROM sale_items WHERE sale_id = ?",
+            (sale_id,)
+        ).fetchall()
+
+        # Devolve ao estoque as quantidades que foram retiradas pela venda.
+        for item in items:
+            conn.execute(
+                "UPDATE products SET stock = stock + ? WHERE id = ?",
+                (item["quantity"], item["product_id"])
+            )
+
+        # Remove os movimentos gerados especificamente por esta venda.
+        conn.execute(
+            "DELETE FROM movements WHERE note = ?",
+            (f"Venda #{sale_id}",)
+        )
+
+        # Remove os itens e, por fim, a venda.
+        conn.execute(
+            "DELETE FROM sale_items WHERE sale_id = ?",
+            (sale_id,)
+        )
+        conn.execute(
+            "DELETE FROM sales WHERE id = ?",
+            (sale_id,)
+        )
+
+        conn.commit()
+        flash(
+            f"Venda #{sale_id} excluída e o estoque dos produtos foi restaurado.",
+            "success"
+        )
+
+    except Exception as exc:
+        conn.rollback()
+        flash(f"Não foi possível excluir a venda: {exc}", "danger")
+
+    finally:
+        conn.close()
+
+    return redirect(url_for("sales"))
 
 
 @app.route("/sales/<int:sale_id>")

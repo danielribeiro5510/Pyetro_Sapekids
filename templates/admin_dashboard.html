@@ -1,54 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Painel ADM · Pyetro Sapekids{% endblock %}
 {% block content %}
-<div class="admin-banner">
-  <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-    <div>
-      <div class="text-white-50 small mb-1">PAINEL ADMINISTRATIVO</div>
-      <h1 class="h3 fw-bold mb-1">Olá, {{ current_username }} 👋</h1>
-      <div class="text-white-50">Controle geral da Pyetro Sapekids</div>
-    </div>
-    <span class="badge text-bg-light px-3 py-2"><i class="bi bi-shield-lock-fill me-1"></i> Acesso total</span>
-  </div>
-</div>
-
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-4"><div><h1 class="page-title h2 mb-1">Painel Administrativo</h1><div class="page-subtitle">Controle geral da sua loja</div></div><a class="btn btn-primary" href="{{ url_for('new_sale') }}"><i class="bi bi-cart-plus me-1"></i> Nova venda</a></div>
 <div class="row g-3 mb-4">
-  <div class="col-6 col-xl-2"><div class="card metric h-100"><div class="icon"><i class="bi bi-box-seam"></i></div><div class="value">{{ total_products }}</div><div class="label">Produtos</div></div></div>
-  <div class="col-6 col-xl-2"><div class="card metric h-100"><div class="icon"><i class="bi bi-stack"></i></div><div class="value">{{ total_stock }}</div><div class="label">Itens em estoque</div></div></div>
-  <div class="col-6 col-xl-2"><div class="card metric h-100"><div class="icon"><i class="bi bi-exclamation-triangle"></i></div><div class="value">{{ low_stock }}</div><div class="label">Estoque baixo</div></div></div>
-  <div class="col-6 col-xl-2"><div class="card metric h-100"><div class="icon"><i class="bi bi-cart-check"></i></div><div class="value">{{ total_sales }}</div><div class="label">Vendas</div></div></div>
-  <div class="col-6 col-xl-2"><div class="card metric h-100"><div class="icon"><i class="bi bi-currency-dollar"></i></div><div class="value">R$ {{ '%.2f'|format(total_revenue) }}</div><div class="label">Faturamento</div></div></div>
-  <div class="col-6 col-xl-2"><div class="card metric h-100"><div class="icon"><i class="bi bi-people"></i></div><div class="value">{{ total_users }}</div><div class="label">Usuários</div></div></div>
+{% for label,value,desc,icon,bg,color in [('Produtos cadastrados',total_products,'Catálogo da loja','bi-box-seam','#efeeff','#6c63ff'),('Itens em estoque',total_stock,'Quantidade disponível','bi-stack','#eaf8f2','#22a06b'),('Estoque baixo',low_stock,'Produtos que precisam de atenção','bi-exclamation-triangle','#fff4df','#d98b00'),('Usuários',total_users,'Contas cadastradas','bi-people','#eef5ff','#3578e5'),('Vendas',sales_count,'Vendas registradas','bi-receipt','#f5efff','#8b5cf6'),('Faturamento','R$ %.2f'|format(revenue),'Total das vendas','bi-cash-stack','#eaf8f2','#168457')] %}
+<div class="col-md-6 col-xl-4"><div class="card metric-card p-4 h-100"><div class="d-flex justify-content-between align-items-start"><div><div class="metric-label">{{ label }}</div><div class="metric-value mt-1">{{ value }}</div></div><div class="metric-icon" style="background:{{ bg }};color:{{ color }}"><i class="bi {{ icon }}"></i></div></div><div class="footer-note mt-3">{{ desc }}</div></div></div>
+{% endfor %}
 </div>
-
-<div class="row g-3">
-  <div class="col-lg-8">
-    <div class="card p-3 p-lg-4 h-100">
-      <div class="d-flex justify-content-between align-items-center mb-3"><div><h2 class="h5 fw-bold mb-1">Atalhos administrativos</h2><div class="text-secondary small">Ações principais do administrador</div></div></div>
-      <div class="row g-3">
-        <div class="col-md-4"><a class="btn btn-light border w-100 py-3" href="{{ url_for('products') }}"><i class="bi bi-box-seam d-block fs-4 mb-1"></i>Produtos</a></div>
-        <div class="col-md-4"><a class="btn btn-light border w-100 py-3" href="{{ url_for('movements') }}"><i class="bi bi-arrow-left-right d-block fs-4 mb-1"></i>Estoque</a></div>
-        <div class="col-md-4"><a class="btn btn-light border w-100 py-3" href="{{ url_for('new_sale') }}"><i class="bi bi-cart-plus d-block fs-4 mb-1"></i>Nova venda</a></div>
-        <div class="col-md-4"><a class="btn btn-light border w-100 py-3" href="{{ url_for('sales') }}"><i class="bi bi-receipt d-block fs-4 mb-1"></i>Vendas</a></div>
-        <div class="col-md-4"><a class="btn btn-light border w-100 py-3" href="{{ url_for('reports') }}"><i class="bi bi-bar-chart-line d-block fs-4 mb-1"></i>Relatórios</a></div>
-        <div class="col-md-4"><button class="btn btn-light border w-100 py-3" disabled><i class="bi bi-people d-block fs-4 mb-1"></i>Usuários</button></div>
-      </div>
-    </div>
-  </div>
-  <div class="col-lg-4">
-    <div class="card p-3 p-lg-4 h-100">
-      <h2 class="h5 fw-bold mb-3">Últimas movimentações</h2>
-      {% if movements %}
-        <div class="list-group list-group-flush">
-        {% for m in movements %}
-          <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
-            <div><div class="fw-semibold">{{ m.name }}</div><small class="text-secondary">{{ m.type }} · {{ m.created_at }}</small></div>
-            <span class="badge rounded-pill text-bg-light">{{ m.quantity }}</span>
-          </div>
-        {% endfor %}
-        </div>
-      {% else %}<div class="text-secondary">Nenhuma movimentação ainda.</div>{% endif %}
-    </div>
-  </div>
-</div>
+<div class="card p-3 p-lg-4"><div class="d-flex flex-column flex-sm-row justify-content-between gap-2 align-items-sm-center"><div><h3 class="section-title h5 mb-1">Últimas movimentações</h3><div class="page-subtitle small">Entradas e saídas recentes do estoque</div></div><a class="btn btn-outline-primary btn-sm" href="{{ url_for('movements') }}">Ver todas</a></div><div class="table-responsive mt-3"><table class="table table-hover mb-0"><thead><tr><th>Produto</th><th>Tipo</th><th>Quantidade</th><th>Data</th></tr></thead><tbody>{% for m in movements %}<tr><td class="fw-semibold">{{ m.name }}</td><td><span class="badge-soft {% if m.type == 'ENTRADA' %}badge-entry{% else %}badge-exit{% endif %}">{{ m.type }}</span></td><td>{{ m.quantity }}</td><td>{{ m.created_at }}</td></tr>{% else %}<tr><td colspan="4"><div class="empty-state"><i class="bi bi-inbox fs-2 d-block mb-2"></i>Nenhuma movimentação registrada.</div></td></tr>{% endfor %}</tbody></table></div></div>
 {% endblock %}
