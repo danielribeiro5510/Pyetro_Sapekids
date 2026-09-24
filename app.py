@@ -481,7 +481,7 @@ def admin_dashboard():
     )
 
 
-@app.route("/dashboard")
+@app.route("/")
 @login_required
 def dashboard():
     conn = db()
@@ -515,17 +515,6 @@ def dashboard():
         low_stock=low_stock,
         movements=movements
     )
-
-
-@app.route("/")
-def root_redirect():
-    # Mantém a URL antiga, mas impede que o navegador reutilize a página raiz antiga.
-    user = get_current_user()
-    if not user:
-        return redirect(url_for("login"))
-    if user["role"] == "admin":
-        return redirect(url_for("admin_dashboard"))
-    return redirect(url_for("dashboard"))
 
 
 @app.route("/products")
