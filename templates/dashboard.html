@@ -1,74 +1,115 @@
 {% extends "base.html" %}
-{% block title %}Dashboard · Pyetro Sapekids<div class="card p-3 p-lg-4 mt-4">
-  <div class="d-flex justify-content-between align-items-center"><div><h3 class="section-title h5 mb-1">⚠️ Produtos com estoque baixo</h3><div class="page-subtitle small">Itens no limite mínimo ou abaixo dele.</div></div><a class="btn btn-outline-primary btn-sm" href="{{ url_for('products') }}">Ver produtos</a></div>
-  <div class="table-responsive mt-3"><table class="table table-hover mb-0"><thead><tr><th>Produto</th><th>Estoque atual</th><th>Mínimo</th></tr></thead><tbody>{% for p in low_products %}<tr><td class="fw-semibold">{{ p.name }}{% if p.brand %} <small class="text-secondary">· {{ p.brand }}</small>{% endif %}</td><td class="text-danger fw-bold">{{ p.stock }}</td><td>{{ p.min_stock }}</td></tr>{% else %}<tr><td colspan="3">Nenhum produto com estoque baixo.</td></tr>{% endfor %}</tbody></table></div>
-</div>
-{% endblock %}
+{% block title %}Painel ADM · Pyetro Sapekids{% endblock %}
 {% block content %}
-<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-4">
-  <div>
-    <h1 class="page-title h2 mb-1">Dashboard</h1>
-    <div class="page-subtitle">Visão geral da sua loja</div>
-  </div>
-  <a class="btn btn-primary" href="{{ url_for('new_sale') }}"><i class="bi bi-cart-plus me-1"></i> Nova venda</a>
-</div>
-
-<div class="row g-3 mb-4">
-  <div class="col-md-4">
-    <div class="card metric-card p-4 h-100">
-      <div class="d-flex justify-content-between align-items-start">
-        <div><div class="metric-label">Produtos cadastrados</div><div class="metric-value mt-1">{{ total_products }}</div></div>
-        <div class="metric-icon" style="background:#efeeff;color:#6c63ff"><i class="bi bi-box-seam"></i></div>
-      </div>
-      <div class="footer-note mt-3">Catálogo da loja</div><div class="stat-accent" style="background:#6c63ff"></div>
+<div class="admin-banner">
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+    <div>
+      <div class="text-white-50 small mb-1">PAINEL ADMINISTRATIVO</div>
+      <h1 class="h3 fw-bold mb-1">Olá, {{ current_username }} 👋</h1>
+      <div class="text-white-50">Controle geral da Pyetro Sapekids</div>
     </div>
-  </div>
-  <div class="col-md-4">
-    <div class="card metric-card p-4 h-100">
-      <div class="d-flex justify-content-between align-items-start">
-        <div><div class="metric-label">Itens em estoque</div><div class="metric-value mt-1">{{ total_stock }}</div></div>
-        <div class="metric-icon" style="background:#eaf8f2;color:#22a06b"><i class="bi bi-stack"></i></div>
-      </div>
-      <div class="footer-note mt-3">Quantidade disponível</div><div class="stat-accent" style="background:#22a06b"></div>
-    </div>
-  </div>
-  <div class="col-md-4">
-    <div class="card metric-card p-4 h-100">
-      <div class="d-flex justify-content-between align-items-start">
-        <div><div class="metric-label">Estoque baixo</div><div class="metric-value mt-1">{{ low_stock }}</div></div>
-        <div class="metric-icon" style="background:#fff4df;color:#d98b00"><i class="bi bi-exclamation-triangle"></i></div>
-      </div>
-      <div class="footer-note mt-3">Produtos que precisam de atenção</div><div class="stat-accent" style="background:#d98b00"></div>
-    </div>
+    <span class="badge text-bg-light px-3 py-2"><i class="bi bi-shield-lock-fill me-1"></i> Acesso total</span>
   </div>
 </div>
 
 <div class="row g-3 mb-4">
-  <div class="col-md-6 col-xl-3"><div class="card metric-card p-4 h-100"><div class="metric-label">Vendas hoje</div><div class="metric-value mt-1">{{ today_sales }}</div><div class="footer-note mt-2">Faturamento: R$ {{ '%.2f'|format(today_revenue) }}</div></div></div>
-  <div class="col-md-6 col-xl-3"><div class="card metric-card p-4 h-100"><div class="metric-label">Faturamento do mês</div><div class="metric-value mt-1">R$ {{ '%.2f'|format(month_revenue) }}</div><div class="footer-note mt-2">{{ month_sales }} venda(s)</div></div></div>
-  <div class="col-md-6 col-xl-3"><div class="card metric-card p-4 h-100"><div class="metric-label">Caixa</div><div class="metric-value mt-1">{{ 'Aberto' if open_cash else 'Fechado' }}</div><div class="footer-note mt-2"><a href="{{ url_for('cash') }}">Acessar caixa</a></div></div></div>
-  <div class="col-md-6 col-xl-3"><div class="card metric-card p-4 h-100"><div class="metric-label">Estoque baixo</div><div class="metric-value mt-1">{{ low_stock }}</div><div class="footer-note mt-2"><a href="{{ url_for('products') }}">Ver produtos</a></div></div></div>
+  <div class="col-6 col-xl-2"><div class="card metric h-100"><div class="icon"><i class="bi bi-box-seam"></i></div><div class="value">{{ total_products }}</div><div class="label">Produtos</div></div></div>
+  <div class="col-6 col-xl-2"><div class="card metric h-100"><div class="icon"><i class="bi bi-stack"></i></div><div class="value">{{ total_stock }}</div><div class="label">Itens em estoque</div></div></div>
+  <div class="col-6 col-xl-2"><div class="card metric h-100"><div class="icon"><i class="bi bi-exclamation-triangle"></i></div><div class="value">{{ low_stock }}</div><div class="label">Estoque baixo</div></div></div>
+  <div class="col-6 col-xl-2"><div class="card metric h-100"><div class="icon"><i class="bi bi-cart-check"></i></div><div class="value">{{ total_sales }}</div><div class="label">Vendas</div></div></div>
+  <div class="col-6 col-xl-2"><div class="card metric h-100"><div class="icon"><i class="bi bi-currency-dollar"></i></div><div class="value">R$ {{ '%.2f'|format(total_revenue) }}</div><div class="label">Faturamento</div></div></div>
+  <div class="col-6 col-xl-2"><div class="card metric h-100"><div class="icon"><i class="bi bi-people"></i></div><div class="value">{{ total_users }}</div><div class="label">Usuários</div></div></div>
 </div>
-<div class="card p-3 p-lg-4">
-  <div class="d-flex flex-column flex-sm-row justify-content-between gap-2 align-items-sm-center">
-    <div><h3 class="section-title h5 mb-1">Últimas movimentações</h3><div class="page-subtitle small">Entradas e saídas recentes do estoque</div></div>
-    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('movements') }}">Ver todas</a>
+
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="card p-3 p-lg-4 h-100">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+          <h2 class="h5 fw-bold mb-1">Atalhos administrativos</h2>
+          <div class="text-secondary small">Ações principais do administrador</div>
+        </div>
+      </div>
+      <div class="row g-3">
+        <div class="col-md-4"><a class="btn btn-light border w-100 py-3" href="{{ url_for('products') }}"><i class="bi bi-box-seam d-block fs-4 mb-1"></i>Produtos</a></div>
+        <div class="col-md-4"><a class="btn btn-light border w-100 py-3" href="{{ url_for('movements') }}"><i class="bi bi-arrow-left-right d-block fs-4 mb-1"></i>Estoque</a></div>
+        <div class="col-md-4"><a class="btn btn-light border w-100 py-3" href="{{ url_for('new_sale') }}"><i class="bi bi-cart-plus d-block fs-4 mb-1"></i>Nova venda</a></div>
+        <div class="col-md-4"><a class="btn btn-light border w-100 py-3" href="{{ url_for('sales') }}"><i class="bi bi-receipt d-block fs-4 mb-1"></i>Vendas</a></div>
+        <div class="col-md-4"><a class="btn btn-light border w-100 py-3" href="{{ url_for('reports') }}"><i class="bi bi-bar-chart-line d-block fs-4 mb-1"></i>Relatórios</a></div>
+        <div class="col-md-4"><a class="btn btn-light border w-100 py-3" href="{{ url_for('admin_users') }}"><i class="bi bi-people d-block fs-4 mb-1"></i>Usuários</a></div>
+      </div>
+    </div>
   </div>
-  <div class="table-responsive mt-3">
-    <table class="table table-hover mb-0">
-      <thead><tr><th>Produto</th><th>Tipo</th><th>Quantidade</th><th>Data</th></tr></thead>
-      <tbody>
-      {% for m in movements %}
-      <tr>
-        <td class="fw-semibold">{{ m.name }}</td>
-        <td><span class="badge-soft {% if m.type == 'ENTRADA' %}badge-entry{% else %}badge-exit{% endif %}">{{ m.type }}</span></td>
-        <td>{{ m.quantity }}</td><td>{{ m.created_at }}</td>
-      </tr>
-      {% else %}
-      <tr><td colspan="4"><div class="empty-state"><i class="bi bi-inbox fs-2 d-block mb-2"></i>Nenhuma movimentação registrada.</div></td></tr>
-      {% endfor %}
-      </tbody>
-    </table>
+
+  <div class="col-lg-4">
+    <div class="card p-3 p-lg-4 h-100">
+      <h2 class="h5 fw-bold mb-3">Últimas movimentações</h2>
+      {% if movements %}
+        <div class="list-group list-group-flush">
+        {% for m in movements %}
+          <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+            <div><div class="fw-semibold">{{ m.name }}</div><small class="text-secondary">{{ m.type }} · {{ m.created_at }}</small></div>
+            <span class="badge rounded-pill text-bg-light">{{ m.quantity }}</span>
+          </div>
+        {% endfor %}
+        </div>
+      {% else %}<div class="text-secondary">Nenhuma movimentação ainda.</div>{% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="card p-3 p-lg-4 mt-3 border-danger-subtle">
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <div>
+      <h2 class="h5 fw-bold mb-1 text-danger"><i class="bi bi-trash3 me-1"></i> Limpeza de dados</h2>
+      <div class="text-secondary small">Área exclusiva do ADM para apagar históricos antigos.</div>
+    </div>
+    <span class="badge text-bg-danger">ATENÇÃO: ação irreversível</span>
+  </div>
+
+  <div class="alert alert-warning small">
+    <b>Cuidado:</b> as opções abaixo apagam dados do banco. Faça um <b>Backup</b> antes de usar.
+    A limpeza de vendas também remove o histórico de vendas e restaura no estoque as quantidades das vendas concluídas.
+  </div>
+
+  <div class="row g-3">
+    <div class="col-md-4">
+      <div class="border rounded-3 p-3 h-100">
+        <div class="fw-bold mb-1"><i class="bi bi-journal-x me-1"></i> Auditoria</div>
+        <div class="text-secondary small mb-3">Apaga todos os registros da auditoria.</div>
+        <form method="post" action="{{ url_for('admin_cleanup') }}" onsubmit="return confirm('Tem certeza que deseja apagar TODA a auditoria? Esta ação não pode ser desfeita.');">
+          <input type="hidden" name="action" value="audit">
+          <button class="btn btn-outline-danger w-100">Excluir auditoria</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="border rounded-3 p-3 h-100">
+        <div class="fw-bold mb-1"><i class="bi bi-arrow-left-right me-1"></i> Movimentações</div>
+        <div class="text-secondary small mb-3">Apaga o histórico de entradas e saídas. O estoque atual não muda.</div>
+        <form method="post" action="{{ url_for('admin_cleanup') }}" onsubmit="return confirm('Tem certeza que deseja apagar TODO o histórico de movimentações? O estoque atual será mantido.');">
+          <input type="hidden" name="action" value="movements">
+          <button class="btn btn-outline-danger w-100">Excluir movimentações</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="border rounded-3 p-3 h-100">
+        <div class="fw-bold mb-1"><i class="bi bi-receipt me-1"></i> Histórico de vendas</div>
+        <div class="text-secondary small mb-3">Apaga vendas e itens vendidos e restaura no estoque as quantidades das vendas concluídas.</div>
+        <form method="post" action="{{ url_for('admin_cleanup') }}" onsubmit="return confirm('ATENÇÃO! Isso apagará TODAS as vendas, itens e trocas/devoluções relacionadas. O estoque das vendas concluídas será restaurado. Deseja continuar?');">
+          <input type="hidden" name="action" value="sales">
+          <button class="btn btn-danger w-100">Excluir histórico de vendas</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-3 small text-secondary">
+    <i class="bi bi-shield-check me-1"></i>
+    Usuários, produtos, clientes, categorias, fornecedores e configurações não são apagados por esses botões.
   </div>
 </div>
 {% endblock %}
