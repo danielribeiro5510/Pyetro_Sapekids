@@ -948,10 +948,19 @@ def sales():
         LEFT JOIN sale_items si ON si.sale_id = s.id
         LEFT JOIN customers c ON c.id = s.customer_id
         GROUP BY s.id, c.name
-        ORDER BY s.id DESC
+        ORDER BY s.id ASC
     """).fetchall()
+    # display_number é a sequência atual das vendas existentes.
+    # Assim, se uma venda for excluída, não ficam buracos na numeração exibida.
+    display_rows = []
+    total_rows = len(rows)
+    for index, row in enumerate(rows, start=1):
+        data = dict(row)
+        data["display_number"] = index
+        display_rows.append(data)
+    display_rows.reverse()
     conn.close()
-    return render_template("sales.html", sales=rows)
+    return render_template("sales.html", sales=display_rows)
 
 
 @app.route("/sales/new", methods=["GET", "POST"])
@@ -1076,10 +1085,12 @@ def new_sale():
 
                 # Número visível da venda. O ID interno nunca é reutilizado.
                 # Se todas as vendas forem excluídas, a próxima começa novamente em #1.
-                last_sale_number = conn.execute(
-                    "SELECT COALESCE(MAX(sale_number), 0) AS n FROM sales"
+                # Número visível: sequência das vendas que realmente existem.
+                # O ID interno do banco continua independente e nunca é reutilizado.
+                current_sales_count = conn.execute(
+                    "SELECT COUNT(*) AS n FROM sales"
                 ).fetchone()["n"]
-                sale_number = int(last_sale_number or 0) + 1
+                sale_number = int(current_sales_count or 0) + 1
 
                 if conn.postgres:
                     cur = conn.execute(
@@ -1170,6 +1181,12 @@ def sale_detail(sale_id):
 
         # Normaliza campos opcionais para o template.
         sale_data = dict(sale)
+        # Número exibido é baseado na posição atual da venda entre as vendas existentes.
+        # Isso evita mostrar o ID interno (ex.: /sales/14) como "Venda #14".
+        display_row = conn.execute(
+            "SELECT COUNT(*) AS n FROM sales WHERE id <= ?", (sale_id,)
+        ).fetchone()
+        sale_data["display_number"] = int((display_row["n"] if display_row else 1) or 1)
         sale_data.setdefault("subtotal", sale_data.get("total", 0) or 0)
         sale_data.setdefault("discount_percent", 0)
         sale_data.setdefault("customer_name", "")
@@ -1754,7 +1771,10 @@ def delete_sale(sale_id):
             flash("Venda não encontrada.", "danger")
             return redirect(url_for("sales"))
 
-        display_sale_number = int(sale["sale_number"] or sale_id)
+        display_row = conn.execute(
+            "SELECT COUNT(*) AS n FROM sales WHERE id <= ?", (sale_id,)
+        ).fetchone()
+        display_sale_number = int((display_row["n"] if display_row else 1) or 1)
 
         items = conn.execute(
             "SELECT * FROM sale_items WHERE sale_id = ?",

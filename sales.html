@@ -63,7 +63,7 @@
                 <tbody>
                 {% for s in sales %}
                     <tr>
-                        <td class="px-4 fw-bold">#{{ s.sale_number or s.id }}</td>
+                        <td class="px-4 fw-bold">#{{ s.display_number }}</td>
                         <td>{{ s.created_at }}</td>
                         <td>{{ s.username }}</td>
                         <td>{{ s.customer_name or '-' }}</td>
@@ -80,7 +80,7 @@
                             <form method="post"
                                   action="{{ url_for('delete_sale', sale_id=s.id) }}"
                                   class="d-inline"
-                                  onsubmit="return confirm('Tem certeza que deseja excluir a venda #{{ s.sale_number or s.id }}? O estoque será devolvido.');">
+                                  onsubmit="return confirm('Tem certeza que deseja excluir a venda #{{ s.display_number }}? O estoque será devolvido.');">
                                 <button type="submit" class="btn btn-sm btn-outline-danger">
                                     <i class="bi bi-trash me-1"></i>Excluir
                                 </button>
