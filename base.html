@@ -10,11 +10,11 @@
     :root{--brand:#171717;--bg:#f5f6f8;--border:#e8e8ec}
     body{background:var(--bg);color:#202124}
     .topbar{background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:1000}
-    .brand{font-weight:800;color:#111;text-decoration:none;letter-spacing:-.3px;display:flex;align-items:center;gap:8px}
-    .brand-logo{height:42px;width:96px;object-fit:contain;background:#111;border-radius:8px;padding:3px;display:block}
-    .nav-link{color:#5f6368!important;font-weight:600;border-radius:10px;margin:3px 2px}
+    .brand{font-weight:800;color:#111;text-decoration:none;letter-spacing:-.5px;font-size:1.15rem;display:flex;align-items:center;gap:7px}
+    .brand i{font-size:1.15rem}
+    .nav-link{color:#5f6368!important;font-weight:600;border-radius:10px;margin:3px 1px;transition:.15s ease}
     .nav-link:hover,.nav-link.active{background:#f1f3f4;color:#111!important}
-    .role-pill{font-size:.78rem;padding:.35rem .65rem;border-radius:999px;background:#111;color:#fff}
+    .role-pill{font-size:.78rem;padding:.38rem .7rem;border-radius:999px;background:#111;color:#fff;white-space:nowrap}
     .page{max-width:1400px;margin:auto;padding:28px 18px 50px}
     .card{border:1px solid var(--border);border-radius:16px;box-shadow:0 5px 20px rgba(20,20,20,.04)}
     .metric{padding:20px}.metric .icon{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:#f1f3f4;font-size:20px}
@@ -30,7 +30,7 @@
 <nav class="topbar navbar navbar-expand-lg">
   <div class="container-fluid px-3 px-lg-4">
     <a class="brand navbar-brand" href="{{ url_for('admin_dashboard') if is_admin else url_for('dashboard') }}">
-      <img class="brand-logo" src="{{ url_for('static', filename='logo_header.jpg') }}" alt="Pyetro Sapekids">
+      <i class="bi bi-bag-heart-fill"></i> Pyetro Sapekids
     </a>
     <div class="nav-scroll d-flex align-items-center ms-lg-3 flex-grow-1">
       {% if is_admin %}
