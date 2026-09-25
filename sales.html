@@ -1,3 +1,21 @@
+
+<style>
+@media print {
+    .no-print { display: none !important; }
+    .sales-print-area {
+        display: block !important;
+        position: static !important;
+        width: 100% !important;
+    }
+    body { background: #fff !important; }
+    .card { border: 0 !important; box-shadow: none !important; }
+    .table { font-size: 12px; }
+    .table th, .table td { padding: 7px 8px !important; }
+    .print-header { display: block !important; margin-bottom: 18px; }
+    @page { margin: 12mm; }
+}
+.print-header { display: none; }
+</style>
 {% extends "base.html" %}
 
 {% block title %}Vendas - Pyetro Sapekids{% endblock %}
@@ -8,12 +26,22 @@
         <h1 class="fw-bold mb-1">Vendas</h1>
         <p class="text-muted mb-0">Consulte as vendas realizadas.</p>
     </div>
-    <a href="{{ url_for('new_sale') }}" class="btn btn-success">
-        <i class="bi bi-plus-lg me-1"></i> Nova venda
-    </a>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-outline-dark no-print" onclick="window.print()">
+            <i class="bi bi-printer me-1"></i> Imprimir relatório
+        </button>
+        <a href="{{ url_for('new_sale') }}" class="btn btn-success no-print">
+            <i class="bi bi-plus-lg me-1"></i> Nova venda
+        </a>
+    </div>
 </div>
 
-<div class="card border-0 shadow-sm">
+<div class="sales-print-area">
+    <div class="print-header">
+        <h1 style="margin:0 0 4px;font-size:24px;">Relatório de vendas</h1>
+        <div style="color:#64748b;">Pyetro Sapekids · Gerado em {{ now_display if now_display is defined else '' }}</div>
+    </div>
+    <div class="card border-0 shadow-sm">
     <div class="card-body p-0">
         {% if sales %}
         <div class="table-responsive">
@@ -68,6 +96,7 @@
             Nenhuma venda registrada.
         </div>
         {% endif %}
+    </div>
     </div>
 </div>
 {% endblock %}
