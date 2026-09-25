@@ -1,12 +1,110 @@
 {% extends "base.html" %}
-{% block title %}Configurações · Pyetro Sapekids{% endblock %}
+{% block title %}Configurações - Pyetro Sapekids{% endblock %}
+
 {% block content %}
-<div class="mb-4"><h1 class="h2 mb-1">Configurações</h1><div class="text-secondary">Dados que podem aparecer em documentos e recibos.</div></div>
-<div class="card p-4" style="max-width:900px"><form method="post" class="row g-3">
-<div class="col-md-6"><label class="form-label">Nome da loja</label><input class="form-control" name="store_name" value="{{ settings.get('store_name','Pyetro Sapekids') }}"></div>
-<div class="col-md-6"><label class="form-label">Telefone</label><input class="form-control" name="store_phone" value="{{ settings.get('store_phone','') }}"></div>
-<div class="col-12"><label class="form-label">Endereço</label><input class="form-control" name="store_address" value="{{ settings.get('store_address','') }}"></div>
-<div class="col-12"><label class="form-label">Rodapé de documentos</label><input class="form-control" name="store_footer" value="{{ settings.get('store_footer','') }}"></div>
-<div class="col-12 d-flex gap-2"><button class="btn btn-dark">Salvar configurações</button><a class="btn btn-outline-secondary" href="{{ url_for('backup_admin') }}">Baixar backup JSON</a></div>
-</form></div>
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1 class="h3 fw-bold mb-1">Configurações</h1>
+    <p class="text-secondary mb-0">Central de configurações administrativas do Pyetro Sapekids.</p>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-6 col-xl-4">
+    <div class="card h-100 p-4">
+      <div class="d-flex align-items-center gap-3 mb-3">
+        <div class="metric-icon"><i class="bi bi-people"></i></div>
+        <div>
+          <h2 class="h5 mb-1">Usuários</h2>
+          <p class="text-secondary mb-0 small">Contas, perfis e status de acesso.</p>
+        </div>
+      </div>
+      <a class="btn btn-outline-dark mt-auto" href="{{ url_for('admin_users') }}">Gerenciar usuários</a>
+    </div>
+  </div>
+
+  <div class="col-md-6 col-xl-4">
+    <div class="card h-100 p-4">
+      <div class="d-flex align-items-center gap-3 mb-3">
+        <div class="metric-icon"><i class="bi bi-tags"></i></div>
+        <div>
+          <h2 class="h5 mb-1">Categorias</h2>
+          <p class="text-secondary mb-0 small">Organize as categorias dos produtos.</p>
+        </div>
+      </div>
+      <a class="btn btn-outline-dark mt-auto" href="{{ url_for('categories') }}">Gerenciar categorias</a>
+    </div>
+  </div>
+
+  <div class="col-md-6 col-xl-4">
+    <div class="card h-100 p-4">
+      <div class="d-flex align-items-center gap-3 mb-3">
+        <div class="metric-icon"><i class="bi bi-truck"></i></div>
+        <div>
+          <h2 class="h5 mb-1">Fornecedores</h2>
+          <p class="text-secondary mb-0 small">Cadastre e mantenha fornecedores.</p>
+        </div>
+      </div>
+      <a class="btn btn-outline-dark mt-auto" href="{{ url_for('suppliers') }}">Gerenciar fornecedores</a>
+    </div>
+  </div>
+
+  <div class="col-md-6 col-xl-4">
+    <div class="card h-100 p-4">
+      <div class="d-flex align-items-center gap-3 mb-3">
+        <div class="metric-icon"><i class="bi bi-journal-text"></i></div>
+        <div>
+          <h2 class="h5 mb-1">Auditoria</h2>
+          <p class="text-secondary mb-0 small">Consulte registros de ações do sistema.</p>
+        </div>
+      </div>
+      <a class="btn btn-outline-dark mt-auto" href="{{ url_for('admin_audit') }}">Abrir auditoria</a>
+    </div>
+  </div>
+
+  <div class="col-md-6 col-xl-4">
+    <div class="card h-100 p-4">
+      <div class="d-flex align-items-center gap-3 mb-3">
+        <div class="metric-icon"><i class="bi bi-download"></i></div>
+        <div>
+          <h2 class="h5 mb-1">Backup</h2>
+          <p class="text-secondary mb-0 small">Gere uma cópia dos dados do sistema.</p>
+        </div>
+      </div>
+      <a class="btn btn-outline-dark mt-auto" href="{{ url_for('admin_backup') }}">Abrir backup</a>
+    </div>
+  </div>
+
+  <div class="col-md-6 col-xl-4">
+    <div class="card h-100 p-4">
+      <div class="d-flex align-items-center gap-3 mb-3">
+        <div class="metric-icon"><i class="bi bi-box-seam"></i></div>
+        <div>
+          <h2 class="h5 mb-1">Produtos</h2>
+          <p class="text-secondary mb-0 small">Acesse rapidamente o cadastro de produtos.</p>
+        </div>
+      </div>
+      <a class="btn btn-outline-dark mt-auto" href="{{ url_for('products') }}">Abrir produtos</a>
+    </div>
+  </div>
+</div>
+
+<div class="card mt-4 p-4">
+  <h2 class="h5 fw-bold">Sobre esta área</h2>
+  <p class="text-secondary mb-0">
+    Esta tela funciona como a central administrativa do sistema. As configurações
+    disponíveis atualmente são organizadas pelos módulos acima, mantendo o restante
+    da interface do Pyetro Sapekids como está.
+  </p>
+</div>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+.metric-icon{
+  width:44px;height:44px;border-radius:12px;
+  display:grid;place-items:center;background:#f1f3f4;font-size:20px;
+}
+.card{min-height:180px}
+</style>
 {% endblock %}

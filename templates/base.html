@@ -44,6 +44,7 @@ body{background:var(--bg);color:#202124}
   {%- elif section == 'backup' and p.startswith('/admin/backup') -%}active
   {%- elif section == 'suppliers' and p.startswith('/suppliers') -%}active
   {%- elif section == 'categories' and p.startswith('/categories') -%}active
+  {%- elif section == 'settings' and p.startswith('/configuracoes') -%}active
   {%- endif -%}
 {%- endmacro %}
 <nav class="topbar navbar navbar-expand-lg">
@@ -66,7 +67,7 @@ body{background:var(--bg);color:#202124}
         <a class="nav-link px-3 {{ nav_active('backup') }}" href="{{ url_for('admin_backup') }}"><i class="bi bi-download me-1"></i> Backup</a>
         <a class="nav-link px-3 {{ nav_active('suppliers') }}" href="{{ url_for('suppliers') }}"><i class="bi bi-truck me-1"></i> Fornecedores</a>
         <a class="nav-link px-3 {{ nav_active('categories') }}" href="{{ url_for('categories') }}"><i class="bi bi-tags me-1"></i> Categorias</a>
-        <span class="nav-link px-3 text-secondary"><i class="bi bi-gear me-1"></i> Configurações</span>
+        <a class="nav-link px-3 {{ nav_active('settings') }}" href="{{ url_for('settings') }}"><i class="bi bi-gear me-1"></i> Configurações</a>
       {% else %}
         <a class="nav-link px-3 {{ nav_active('dashboard') }}" href="{{ url_for('dashboard') }}"><i class="bi bi-speedometer2 me-1"></i> Dashboard</a>
         <a class="nav-link px-3 {{ nav_active('products') }}" href="{{ url_for('products') }}"><i class="bi bi-box-seam me-1"></i> Produtos</a>
