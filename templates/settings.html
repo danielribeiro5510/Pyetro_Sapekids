@@ -1,110 +1,105 @@
 {% extends "base.html" %}
-{% block title %}Configurações - Pyetro Sapekids{% endblock %}
+{% block title %}Configurações · Pyetro Sapekids{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <div>
-    <h1 class="h3 fw-bold mb-1">Configurações</h1>
-    <p class="text-secondary mb-0">Central de configurações administrativas do Pyetro Sapekids.</p>
+<div class="admin-banner">
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+    <div>
+      <div class="text-white-50 small mb-1">ADMINISTRAÇÃO</div>
+      <h1 class="h3 fw-bold mb-1">Configurações</h1>
+      <div class="text-white-50">Central de configurações e manutenção do sistema</div>
+    </div>
+    <span class="badge text-bg-light px-3 py-2">
+      <i class="bi bi-shield-lock-fill me-1"></i> Somente ADM
+    </span>
   </div>
 </div>
 
 <div class="row g-3">
-  <div class="col-md-6 col-xl-4">
-    <div class="card h-100 p-4">
-      <div class="d-flex align-items-center gap-3 mb-3">
-        <div class="metric-icon"><i class="bi bi-people"></i></div>
-        <div>
-          <h2 class="h5 mb-1">Usuários</h2>
-          <p class="text-secondary mb-0 small">Contas, perfis e status de acesso.</p>
+  <div class="col-lg-8">
+    <div class="card p-3 p-lg-4">
+      <h2 class="h5 fw-bold mb-1">Configurações administrativas</h2>
+      <div class="text-secondary small mb-4">Acesse rapidamente as áreas de administração.</div>
+
+      <div class="row g-3">
+        <div class="col-md-6">
+          <a class="btn btn-light border w-100 py-3" href="{{ url_for('admin_users') }}">
+            <i class="bi bi-people d-block fs-4 mb-1"></i>Usuários
+          </a>
+        </div>
+        <div class="col-md-6">
+          <a class="btn btn-light border w-100 py-3" href="{{ url_for('categories') }}">
+            <i class="bi bi-tags d-block fs-4 mb-1"></i>Categorias
+          </a>
+        </div>
+        <div class="col-md-6">
+          <a class="btn btn-light border w-100 py-3" href="{{ url_for('suppliers') }}">
+            <i class="bi bi-truck d-block fs-4 mb-1"></i>Fornecedores
+          </a>
+        </div>
+        <div class="col-md-6">
+          <a class="btn btn-light border w-100 py-3" href="{{ url_for('admin_audit') }}">
+            <i class="bi bi-journal-text d-block fs-4 mb-1"></i>Auditoria
+          </a>
+        </div>
+        <div class="col-md-6">
+          <a class="btn btn-light border w-100 py-3" href="{{ url_for('admin_backup') }}">
+            <i class="bi bi-download d-block fs-4 mb-1"></i>Backup
+          </a>
+        </div>
+        <div class="col-md-6">
+          <a class="btn btn-light border w-100 py-3" href="{{ url_for('products') }}">
+            <i class="bi bi-box-seam d-block fs-4 mb-1"></i>Produtos
+          </a>
         </div>
       </div>
-      <a class="btn btn-outline-dark mt-auto" href="{{ url_for('admin_users') }}">Gerenciar usuários</a>
     </div>
   </div>
 
-  <div class="col-md-6 col-xl-4">
-    <div class="card h-100 p-4">
-      <div class="d-flex align-items-center gap-3 mb-3">
-        <div class="metric-icon"><i class="bi bi-tags"></i></div>
-        <div>
-          <h2 class="h5 mb-1">Categorias</h2>
-          <p class="text-secondary mb-0 small">Organize as categorias dos produtos.</p>
-        </div>
+  <div class="col-lg-4">
+    <div class="card p-3 p-lg-4 border-danger-subtle h-100">
+      <h2 class="h5 fw-bold text-danger mb-1">
+        <i class="bi bi-trash3 me-1"></i> Limpeza de dados
+      </h2>
+      <div class="text-secondary small mb-3">
+        Exclusão de históricos. Disponível somente para o administrador.
       </div>
-      <a class="btn btn-outline-dark mt-auto" href="{{ url_for('categories') }}">Gerenciar categorias</a>
-    </div>
-  </div>
 
-  <div class="col-md-6 col-xl-4">
-    <div class="card h-100 p-4">
-      <div class="d-flex align-items-center gap-3 mb-3">
-        <div class="metric-icon"><i class="bi bi-truck"></i></div>
-        <div>
-          <h2 class="h5 mb-1">Fornecedores</h2>
-          <p class="text-secondary mb-0 small">Cadastre e mantenha fornecedores.</p>
-        </div>
+      <div class="alert alert-warning small">
+        <b>Atenção:</b> estas ações são irreversíveis. Faça um backup antes de excluir qualquer histórico.
       </div>
-      <a class="btn btn-outline-dark mt-auto" href="{{ url_for('suppliers') }}">Gerenciar fornecedores</a>
-    </div>
-  </div>
 
-  <div class="col-md-6 col-xl-4">
-    <div class="card h-100 p-4">
-      <div class="d-flex align-items-center gap-3 mb-3">
-        <div class="metric-icon"><i class="bi bi-journal-text"></i></div>
-        <div>
-          <h2 class="h5 mb-1">Auditoria</h2>
-          <p class="text-secondary mb-0 small">Consulte registros de ações do sistema.</p>
-        </div>
-      </div>
-      <a class="btn btn-outline-dark mt-auto" href="{{ url_for('admin_audit') }}">Abrir auditoria</a>
-    </div>
-  </div>
+      <div class="d-grid gap-2">
+        <form method="post" action="{{ url_for('admin_cleanup') }}"
+              onsubmit="return confirm('Tem certeza que deseja apagar TODA a auditoria? Esta ação não pode ser desfeita.');">
+          <input type="hidden" name="action" value="audit">
+          <button class="btn btn-outline-danger w-100">
+            <i class="bi bi-journal-x me-1"></i>Excluir auditoria
+          </button>
+        </form>
 
-  <div class="col-md-6 col-xl-4">
-    <div class="card h-100 p-4">
-      <div class="d-flex align-items-center gap-3 mb-3">
-        <div class="metric-icon"><i class="bi bi-download"></i></div>
-        <div>
-          <h2 class="h5 mb-1">Backup</h2>
-          <p class="text-secondary mb-0 small">Gere uma cópia dos dados do sistema.</p>
-        </div>
-      </div>
-      <a class="btn btn-outline-dark mt-auto" href="{{ url_for('admin_backup') }}">Abrir backup</a>
-    </div>
-  </div>
+        <form method="post" action="{{ url_for('admin_cleanup') }}"
+              onsubmit="return confirm('Tem certeza que deseja apagar TODO o histórico de movimentações? O estoque atual será mantido.');">
+          <input type="hidden" name="action" value="movements">
+          <button class="btn btn-outline-danger w-100">
+            <i class="bi bi-arrow-left-right me-1"></i>Excluir movimentações
+          </button>
+        </form>
 
-  <div class="col-md-6 col-xl-4">
-    <div class="card h-100 p-4">
-      <div class="d-flex align-items-center gap-3 mb-3">
-        <div class="metric-icon"><i class="bi bi-box-seam"></i></div>
-        <div>
-          <h2 class="h5 mb-1">Produtos</h2>
-          <p class="text-secondary mb-0 small">Acesse rapidamente o cadastro de produtos.</p>
-        </div>
+        <form method="post" action="{{ url_for('admin_cleanup') }}"
+              onsubmit="return confirm('ATENÇÃO! Isso apagará TODAS as vendas, itens e trocas/devoluções relacionadas. O estoque das vendas concluídas será restaurado. Deseja continuar?');">
+          <input type="hidden" name="action" value="sales">
+          <button class="btn btn-danger w-100">
+            <i class="bi bi-receipt me-1"></i>Excluir histórico de vendas
+          </button>
+        </form>
       </div>
-      <a class="btn btn-outline-dark mt-auto" href="{{ url_for('products') }}">Abrir produtos</a>
+
+      <div class="mt-3 small text-secondary">
+        <i class="bi bi-shield-check me-1"></i>
+        Usuários, produtos, clientes, categorias e fornecedores não são apagados por essas opções.
+      </div>
     </div>
   </div>
 </div>
-
-<div class="card mt-4 p-4">
-  <h2 class="h5 fw-bold">Sobre esta área</h2>
-  <p class="text-secondary mb-0">
-    Esta tela funciona como a central administrativa do sistema. As configurações
-    disponíveis atualmente são organizadas pelos módulos acima, mantendo o restante
-    da interface do Pyetro Sapekids como está.
-  </p>
-</div>
-{% endblock %}
-
-{% block extra_head %}
-<style>
-.metric-icon{
-  width:44px;height:44px;border-radius:12px;
-  display:grid;place-items:center;background:#f1f3f4;font-size:20px;
-}
-.card{min-height:180px}
-</style>
 {% endblock %}
