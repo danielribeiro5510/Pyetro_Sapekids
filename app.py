@@ -728,6 +728,8 @@ def dashboard():
         today_sales=int(today_summary["sales_count"] or 0),
         month_revenue=float(month_summary["revenue"] or 0),
         month_sales=int(month_summary["sales_count"] or 0),
+        # Compatibilidade com o dashboard.html atual.
+        total_revenue=float(month_summary["revenue"] or 0),
         low_products=low_products,
         open_cash=open_cash
     ))
