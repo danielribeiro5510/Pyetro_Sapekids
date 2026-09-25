@@ -15,7 +15,7 @@
   <div class="d-flex flex-wrap gap-2 mb-3">
     <a class="btn {{ 'btn-primary' if mode == 'month' else 'btn-outline-primary' }}" href="{{ url_for('reports', mode='month', month=month, year=year, date=selected_date) }}"><i class="bi bi-calendar-month me-1"></i> Relatório mensal</a>
     <a class="btn {{ 'btn-primary' if mode == 'day' else 'btn-outline-primary' }}" href="{{ url_for('reports', mode='day', month=month, year=year, date=selected_date) }}"><i class="bi bi-calendar-day me-1"></i> Relatório diário</a>
-  </div>
+  <a class="btn btn-outline-primary" href="{{ url_for('financial_report') }}"><i class="bi bi-cash-stack me-1"></i>Financeiro por período</a> <a class="btn btn-outline-secondary" href="{{ url_for('stock_reports') }}"><i class="bi bi-boxes me-1"></i>Análise de estoque</a></div>
   <form method="get" class="row g-3 align-items-end">
     <input type="hidden" name="mode" value="{{ mode }}">
     <div class="col-md-3"><label class="form-label fw-semibold">Mês</label><select class="form-select" name="month">{% for number,name in months %}<option value="{{ number }}" {% if number == month %}selected{% endif %}>{{ name }}</option>{% endfor %}</select></div>

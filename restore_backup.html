@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Restaurar backup · Pyetro Sapekids{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4"><div><h1 class="page-title h2 mb-1"><i class="bi bi-arrow-counterclockwise me-1"></i> Restaurar backup</h1><div class="page-subtitle">Importe um backup ZIP criado pelo próprio sistema.</div></div><a class="btn btn-outline-secondary" href="{{ url_for('admin_backup') }}"><i class="bi bi-download me-1"></i>Novo backup</a></div>
+<div class="card p-4 mb-4">
+  <div class="alert alert-warning"><strong>Atenção:</strong> a restauração atualiza registros operacionais pelo ID. Usuários, senhas, sessões de login e auditoria <strong>não são sobrescritos</strong>.</div>
+  <form method="post" enctype="multipart/form-data" onsubmit="return confirm('Tem certeza que deseja restaurar este backup? Os registros operacionais do arquivo poderão atualizar os dados atuais.');">
+    <label class="form-label fw-semibold">Arquivo ZIP do backup</label>
+    <input class="form-control" type="file" name="backup_file" accept=".zip" required>
+    <div class="form-text">Use preferencialmente um ZIP gerado em Backup dentro do Pyetro Sapekids.</div>
+    <button class="btn btn-primary mt-3"><i class="bi bi-arrow-counterclockwise me-1"></i>Restaurar backup</button>
+  </form>
+</div>
+<div class="card p-4"><h3 class="h5">O que é restaurado?</h3><p class="text-secondary mb-2">Produtos, estoque/movimentações, vendas, itens de venda, clientes, fornecedores, categorias, caixas, movimentos de caixa e trocas/devoluções.</p><p class="text-secondary mb-0">O sistema não usa o backup para trocar sua senha nem para alterar a auditoria existente.</p></div>
+{% endblock %}

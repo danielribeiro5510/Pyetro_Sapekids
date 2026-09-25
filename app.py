@@ -8,7 +8,7 @@ except ImportError:
     psycopg = None
     dict_row = None
 from functools import wraps
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import os
 import secrets
@@ -351,6 +351,8 @@ def init_db():
                 phone TEXT,
                 whatsapp TEXT,
                 address TEXT,
+                birth_date TEXT,
+                notes TEXT,
                 created_at TEXT NOT NULL
             )
         """)
@@ -368,6 +370,10 @@ def init_db():
             conn.execute("ALTER TABLE customers ADD COLUMN whatsapp TEXT")
         if "address" not in customer_cols:
             conn.execute("ALTER TABLE customers ADD COLUMN address TEXT")
+        if "birth_date" not in customer_cols:
+            conn.execute("ALTER TABLE customers ADD COLUMN birth_date TEXT")
+        if "notes" not in customer_cols:
+            conn.execute("ALTER TABLE customers ADD COLUMN notes TEXT")
         if "created_at" not in customer_cols:
             conn.execute("ALTER TABLE customers ADD COLUMN created_at TEXT")
             conn.execute("UPDATE customers SET created_at = ? WHERE created_at IS NULL", (datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S"),))
@@ -408,9 +414,16 @@ def init_db():
                 phone TEXT,
                 whatsapp TEXT,
                 address TEXT,
+                birth_date TEXT,
+                notes TEXT,
                 created_at TEXT NOT NULL
             )
         """)
+        customer_cols = {row[1] for row in conn.execute("PRAGMA table_info(customers)").fetchall()}
+        if "birth_date" not in customer_cols:
+            conn.execute("ALTER TABLE customers ADD COLUMN birth_date TEXT")
+        if "notes" not in customer_cols:
+            conn.execute("ALTER TABLE customers ADD COLUMN notes TEXT")
         cols = {row[1] for row in conn.execute("PRAGMA table_info(sales)").fetchall()}
         if "customer_id" not in cols:
             conn.execute("ALTER TABLE sales ADD COLUMN customer_id INTEGER")
@@ -738,6 +751,27 @@ def dashboard():
         LIMIT 10
     """).fetchall()
 
+    # Indicadores avançados: últimos 7 dias, produtos mais vendidos e estoque parado.
+    last_days=[]
+    for offset in range(6,-1,-1):
+        day=(datetime.now(TZ)-timedelta(days=offset)).strftime("%Y-%m-%d")
+        r=conn.execute("SELECT COUNT(*) c, COALESCE(SUM(total),0) total FROM sales WHERE status <> 'CANCELLED' AND substr(created_at,1,10)=?",(day,)).fetchone()
+        last_days.append({"date":day[8:10]+"/"+day[5:7],"sales":int(r["c"] or 0),"revenue":float(r["total"] or 0)})
+    top_products=conn.execute("""
+        SELECT p.name, SUM(si.quantity) quantity, COALESCE(SUM(si.subtotal),0) total
+        FROM sale_items si JOIN sales s ON s.id=si.sale_id JOIN products p ON p.id=si.product_id
+        WHERE s.status <> 'CANCELLED' AND substr(s.created_at,1,7)=?
+        GROUP BY p.id,p.name ORDER BY quantity DESC,total DESC LIMIT 5
+    """,(month_period,)).fetchall()
+    cutoff=(datetime.now(TZ)-timedelta(days=60)).strftime("%Y-%m-%d")
+    stale_products=conn.execute("""
+        SELECT p.id,p.name,p.stock,p.price,p.cost,MAX(s.created_at) last_sale
+        FROM products p LEFT JOIN sale_items si ON si.product_id=p.id LEFT JOIN sales s ON s.id=si.sale_id AND s.status <> 'CANCELLED'
+        GROUP BY p.id,p.name,p.stock,p.price,p.cost
+        HAVING p.stock > 0 AND (MAX(s.created_at) IS NULL OR substr(MAX(s.created_at),1,10) < ?)
+        ORDER BY p.stock DESC,p.name LIMIT 10
+    """,(cutoff,)).fetchall()
+
     conn.close()
 
     response = make_response(render_template(
@@ -751,7 +785,10 @@ def dashboard():
         month_revenue=float(month_summary["revenue"] or 0),
         month_sales=int(month_summary["sales_count"] or 0),
         low_products=low_products,
-        open_cash=open_cash
+        open_cash=open_cash,
+        last_days=last_days,
+        top_products=top_products,
+        stale_products=stale_products
     ))
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     response.headers["Pragma"] = "no-cache"
@@ -1342,8 +1379,8 @@ def customers():
     if q:
         like = f"%{q}%"
         rows = conn.execute("""SELECT * FROM customers
-                              WHERE name LIKE ? OR COALESCE(cpf,'') LIKE ? OR COALESCE(phone,'') LIKE ?
-                              ORDER BY name""", (like, like, like)).fetchall()
+                              WHERE name LIKE ? OR COALESCE(cpf,'') LIKE ? OR COALESCE(phone,'') LIKE ? OR COALESCE(whatsapp,'') LIKE ?
+                              ORDER BY name""", (like, like, like, like)).fetchall()
     else:
         rows = conn.execute("SELECT * FROM customers ORDER BY name").fetchall()
     conn.close()
@@ -1360,6 +1397,8 @@ def new_customer():
         phone = request.form.get("phone", "").strip()
         whatsapp = request.form.get("whatsapp", "").strip()
         address = request.form.get("address", "").strip()
+        birth_date = request.form.get("birth_date", "").strip()
+        notes = request.form.get("notes", "").strip()
         if not name:
             flash("Informe o nome do cliente.", "danger")
             return render_template("customer_form.html", customer=None, return_to=return_to)
@@ -1367,14 +1406,14 @@ def new_customer():
         now = datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
         try:
             if conn.postgres:
-                cur = conn.execute("""INSERT INTO customers (name, cpf, phone, whatsapp, address, created_at)
-                                      VALUES (?, ?, ?, ?, ?, ?) RETURNING id""",
-                                   (name, cpf, phone, whatsapp, address, now))
+                cur = conn.execute("""INSERT INTO customers (name, cpf, phone, whatsapp, address, birth_date, notes, created_at)
+                                      VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
+                                   (name, cpf, phone, whatsapp, address, birth_date, notes, now))
                 customer_id = cur.fetchone()["id"]
             else:
-                cur = conn.execute("""INSERT INTO customers (name, cpf, phone, whatsapp, address, created_at)
-                                      VALUES (?, ?, ?, ?, ?, ?)""",
-                                   (name, cpf, phone, whatsapp, address, now))
+                cur = conn.execute("""INSERT INTO customers (name, cpf, phone, whatsapp, address, birth_date, notes, created_at)
+                                      VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                                   (name, cpf, phone, whatsapp, address, birth_date, notes, now))
                 customer_id = cur.lastrowid
             conn.commit()
         except Exception:
@@ -1402,11 +1441,12 @@ def edit_customer(customer_id):
     if request.method == "POST":
         values = (request.form.get("name", "").strip(), request.form.get("cpf", "").strip(),
                   request.form.get("phone", "").strip(), request.form.get("whatsapp", "").strip(),
-                  request.form.get("address", "").strip(), customer_id)
+                  request.form.get("address", "").strip(), request.form.get("birth_date", "").strip(),
+                  request.form.get("notes", "").strip(), customer_id)
         if not values[0]:
             conn.close(); flash("Informe o nome do cliente.", "danger")
             return render_template("customer_form.html", customer=customer)
-        conn.execute("""UPDATE customers SET name=?, cpf=?, phone=?, whatsapp=?, address=? WHERE id=?""", values)
+        conn.execute("""UPDATE customers SET name=?, cpf=?, phone=?, whatsapp=?, address=?, birth_date=?, notes=? WHERE id=?""", values)
         conn.commit(); conn.close()
         audit("ALTERAÇÃO DE CLIENTE", f"Cliente #{customer_id} - {values[0]}")
         flash("Cliente atualizado com sucesso.", "success")
@@ -1656,6 +1696,152 @@ def reports():
         day_ticket_average=day_ticket_average, day_subtotal=day_subtotal,
         day_discount=day_discount, day_payments=day_payments, day_sales=day_sales, profit=profit, day_profit=day_profit_value)
 
+
+
+
+@app.route("/reports/financeiro", methods=["GET"])
+@login_required
+def financial_report():
+    now=datetime.now(TZ)
+    start=request.args.get("start", now.replace(day=1).strftime("%Y-%m-%d"))
+    end=request.args.get("end", now.strftime("%Y-%m-%d"))
+    try:
+        datetime.strptime(start,"%Y-%m-%d"); datetime.strptime(end,"%Y-%m-%d")
+    except ValueError:
+        start=now.replace(day=1).strftime("%Y-%m-%d"); end=now.strftime("%Y-%m-%d")
+    if start>end: start,end=end,start
+    conn=db()
+    summary=conn.execute("""
+        SELECT COUNT(*) sales_count,COALESCE(SUM(total),0) revenue,COALESCE(SUM(COALESCE(subtotal,total)*COALESCE(discount_percent,0)/100.0),0) discount
+        FROM sales WHERE status <> 'CANCELLED' AND substr(created_at,1,10) BETWEEN ? AND ?
+    """,(start,end)).fetchone()
+    costs=conn.execute("""
+        SELECT COALESCE(SUM(si.unit_cost*si.quantity),0) cost,COALESCE(SUM(si.subtotal-(si.unit_cost*si.quantity)),0) profit
+        FROM sale_items si JOIN sales s ON s.id=si.sale_id WHERE s.status <> 'CANCELLED' AND substr(s.created_at,1,10) BETWEEN ? AND ?
+    """,(start,end)).fetchone()
+    payments=conn.execute("""
+        SELECT payment_method,COUNT(*) sales_count,COALESCE(SUM(total),0) total FROM sales
+        WHERE status <> 'CANCELLED' AND substr(created_at,1,10) BETWEEN ? AND ? GROUP BY payment_method ORDER BY total DESC
+    """,(start,end)).fetchall()
+    top=conn.execute("""
+        SELECT p.name,SUM(si.quantity) quantity,COALESCE(SUM(si.subtotal),0) total,COALESCE(SUM(si.subtotal-si.unit_cost*si.quantity),0) profit
+        FROM sale_items si JOIN sales s ON s.id=si.sale_id JOIN products p ON p.id=si.product_id
+        WHERE s.status <> 'CANCELLED' AND substr(s.created_at,1,10) BETWEEN ? AND ?
+        GROUP BY p.id,p.name ORDER BY quantity DESC,total DESC LIMIT 20
+    """,(start,end)).fetchall()
+    cm=conn.execute("""
+        SELECT COALESCE(SUM(CASE WHEN type='SUPRIMENTO' THEN amount ELSE 0 END),0) supplies,
+               COALESCE(SUM(CASE WHEN type='SANGRIA' THEN amount ELSE 0 END),0) withdrawals,
+               COALESCE(SUM(CASE WHEN type='DESPESA' THEN amount ELSE 0 END),0) expenses
+        FROM cash_movements WHERE substr(created_at,1,10) BETWEEN ? AND ?
+    """,(start,end)).fetchone()
+    conn.close()
+    sales_count=int(summary["sales_count"] or 0); revenue=float(summary["revenue"] or 0)
+    summary_data={"sales_count":sales_count,"revenue":revenue,"discount":float(summary["discount"] or 0),"cost":float(costs["cost"] or 0),"profit":float(costs["profit"] or 0),"ticket":revenue/sales_count if sales_count else 0}
+    cash_data={"supplies":float(cm["supplies"] or 0),"withdrawals":float(cm["withdrawals"] or 0),"expenses":float(cm["expenses"] or 0)}
+    return render_template("financial_report.html",start=start,end=end,summary=summary_data,cash=cash_data,payments=payments,top_products=top)
+
+@app.route("/reports/export-period.xlsx")
+@login_required
+def export_period_xlsx():
+    from openpyxl import Workbook
+    from openpyxl.styles import Font
+    now=datetime.now(TZ); start=request.args.get("start",now.replace(day=1).strftime("%Y-%m-%d")); end=request.args.get("end",now.strftime("%Y-%m-%d"))
+    try: datetime.strptime(start,"%Y-%m-%d"); datetime.strptime(end,"%Y-%m-%d")
+    except ValueError: start=now.replace(day=1).strftime("%Y-%m-%d"); end=now.strftime("%Y-%m-%d")
+    if start>end: start,end=end,start
+    conn=db(); rows=conn.execute("SELECT sale_number,created_at,username,payment_method,subtotal,discount_percent,total,status FROM sales WHERE status <> 'CANCELLED' AND substr(created_at,1,10) BETWEEN ? AND ? ORDER BY id",(start,end)).fetchall(); conn.close()
+    wb=Workbook(); ws=wb.active; ws.title="Vendas"; headers=["Venda","Data","Usuário","Pagamento","Subtotal","Desconto %","Total","Status"]; ws.append(headers)
+    for c in ws[1]: c.font=Font(bold=True)
+    for r in rows: ws.append([r[k] for k in ["sale_number","created_at","username","payment_method","subtotal","discount_percent","total","status"]])
+    for col in ["E","G"]:
+        for cell in ws[col][1:]: cell.number_format="R$ #,##0.00"
+    import io; mem=io.BytesIO(); wb.save(mem); mem.seek(0)
+    return send_file(mem,as_attachment=True,download_name=f"financeiro_{start}_{end}.xlsx",mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+@app.route("/reports/estoque")
+@login_required
+def stock_reports():
+    conn=db()
+    low=conn.execute("SELECT id,name,brand,stock,min_stock,cost,price FROM products WHERE stock <= min_stock ORDER BY stock,name").fetchall()
+    stale_cutoff=(datetime.now(TZ)-timedelta(days=60)).strftime("%Y-%m-%d")
+    stale=conn.execute("""
+        SELECT p.id,p.name,p.brand,p.stock,p.cost,p.price,MAX(s.created_at) last_sale
+        FROM products p LEFT JOIN sale_items si ON si.product_id=p.id LEFT JOIN sales s ON s.id=si.sale_id AND s.status <> 'CANCELLED'
+        GROUP BY p.id,p.name,p.brand,p.stock,p.cost,p.price
+        HAVING p.stock>0 AND (MAX(s.created_at) IS NULL OR substr(MAX(s.created_at),1,10) < ?)
+        ORDER BY p.stock DESC,p.name
+    """,(stale_cutoff,)).fetchall()
+    top=conn.execute("""
+        SELECT p.name,SUM(si.quantity) quantity,COALESCE(SUM(si.subtotal),0) total
+        FROM sale_items si JOIN sales s ON s.id=si.sale_id JOIN products p ON p.id=si.product_id
+        WHERE s.status <> 'CANCELLED'
+        GROUP BY p.id,p.name ORDER BY quantity DESC,total DESC LIMIT 30
+    """).fetchall()
+    conn.close()
+    return render_template("stock_reports.html",low=low,stale=stale,top=top,cutoff=stale_cutoff)
+
+@app.route("/admin/backup/restore", methods=["GET","POST"])
+@login_required
+@admin_required
+def restore_backup():
+    import csv, io, zipfile
+    tables_allowed={"products","movements","sales","sale_items","customers","suppliers","cash_sessions","cash_movements","returns","return_items","categories"}
+    if request.method=="POST":
+        upload=request.files.get("backup_file")
+        if not upload or not upload.filename.lower().endswith(".zip"):
+            flash("Selecione um arquivo ZIP de backup do Pyetro Sapekids.","danger")
+            return redirect(url_for("restore_backup"))
+        conn=db()
+        restored=0
+        try:
+            with zipfile.ZipFile(upload.stream) as z:
+                names=set(z.namelist())
+                for table in ["categories","suppliers","customers","products","cash_sessions","sales","sale_items","movements","cash_movements","returns","return_items"]:
+                    filename=table+".csv"
+                    if filename not in names: continue
+                    raw=z.read(filename).decode("utf-8-sig")
+                    reader=csv.DictReader(io.StringIO(raw))
+                    rows=list(reader)
+                    if not rows or "sem_registros" in rows[0]: continue
+                    cols_now=table_columns(conn,table)
+                    valid=[c for c in (reader.fieldnames or []) if c in cols_now]
+                    if not valid or "id" not in valid: continue
+                    # Users/auth/audit are intentionally excluded from restore.
+                    # Operational rows are upserted by ID to avoid duplicating a backup.
+                    for row in rows:
+                        values=[]
+                        for c in valid:
+                            v=row.get(c)
+                            if v=="": v=None
+                            if c in {"id","product_id","sale_id","sale_item_id","return_id","supplier_id","customer_id","cash_session_id","replacement_product_id","replacement_quantity","quantity","stock","min_stock"} and v is not None:
+                                try: v=int(float(v))
+                                except: pass
+                            if c in {"price","cost","total","subtotal","discount_percent","unit_price","unit_cost","opening_amount","closing_amount","expected_amount","difference","amount"} and v is not None:
+                                try: v=float(v)
+                                except: pass
+                            values.append(v)
+                        placeholders=",".join(["?"]*len(valid))
+                        updates=[c for c in valid if c!="id"]
+                        if conn.postgres:
+                            sql=f"INSERT INTO {table} ({','.join(valid)}) VALUES ({placeholders}) ON CONFLICT (id) DO UPDATE SET " + ",".join(f"{c}=EXCLUDED.{c}" for c in updates)
+                        else:
+                            sql=f"INSERT OR REPLACE INTO {table} ({','.join(valid)}) VALUES ({placeholders})"
+                        conn.execute(sql,tuple(values)); restored+=1
+            if conn.postgres:
+                for seq_table in ["categories","suppliers","customers","products","cash_sessions","sales","sale_items","movements","cash_movements","returns","return_items"]:
+                    try:
+                        conn.execute("SELECT setval(pg_get_serial_sequence('" + seq_table + "', 'id'), COALESCE((SELECT MAX(id) FROM " + seq_table + "), 1), true)")
+                    except Exception:
+                        pass
+            conn.commit(); conn.close()
+            audit("RESTAURAÇÃO DE BACKUP",f"{restored} registros operacionais restaurados. Usuários e auditoria não foram sobrescritos.")
+            flash(f"Backup restaurado: {restored} registros processados. Usuários, sessões e auditoria foram preservados.","success")
+        except Exception as exc:
+            conn.rollback(); conn.close(); app.logger.exception("Erro ao restaurar backup")
+            flash(f"Não foi possível restaurar o backup: {exc}","danger")
+        return redirect(url_for("restore_backup"))
+    return render_template("restore_backup.html")
 
 @app.route("/admin/users")
 @login_required

@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Análises de estoque · Pyetro Sapekids{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4"><div><h1 class="page-title h2 mb-1"><i class="bi bi-boxes me-1"></i> Análises de estoque</h1><div class="page-subtitle">Estoque baixo, produtos parados e itens mais vendidos.</div></div><a class="btn btn-outline-secondary" href="{{ url_for('products') }}">Produtos</a></div>
+<div class="row g-4">
+<div class="col-lg-6"><div class="card p-4 h-100"><h3 class="h5">⚠️ Estoque baixo</h3><div class="table-responsive mt-3"><table class="table"><thead><tr><th>Produto</th><th>Atual</th><th>Mínimo</th><th>Valor</th></tr></thead><tbody>{% for p in low %}<tr><td class="fw-semibold">{{ p.name }}</td><td class="text-danger fw-bold">{{ p.stock }}</td><td>{{ p.min_stock }}</td><td>R$ {{ '%.2f'|format(p.stock*p.cost) }}</td></tr>{% else %}<tr><td colspan="4">Nenhum produto no limite mínimo.</td></tr>{% endfor %}</tbody></table></div></div></div>
+<div class="col-lg-6"><div class="card p-4 h-100"><h3 class="h5">⏳ Estoque parado</h3><p class="small text-secondary">Sem venda nos últimos 60 dias ou nunca vendido.</p><div class="table-responsive"><table class="table"><thead><tr><th>Produto</th><th>Estoque</th><th>Última venda</th></tr></thead><tbody>{% for p in stale %}<tr><td class="fw-semibold">{{ p.name }}</td><td>{{ p.stock }}</td><td>{{ p.last_sale or 'Nunca vendido' }}</td></tr>{% else %}<tr><td colspan="3">Nenhum produto parado.</td></tr>{% endfor %}</tbody></table></div></div></div>
+</div>
+<div class="card p-4 mt-4"><h3 class="h5">🏆 Produtos mais vendidos — geral</h3><div class="table-responsive mt-3"><table class="table"><thead><tr><th>#</th><th>Produto</th><th>Quantidade</th><th>Faturamento</th></tr></thead><tbody>{% for p in top %}<tr><td>{{ loop.index }}</td><td class="fw-semibold">{{ p.name }}</td><td>{{ p.quantity }}</td><td>R$ {{ '%.2f'|format(p.total) }}</td></tr>{% else %}<tr><td colspan="4">Ainda não existem vendas.</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

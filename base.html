@@ -40,11 +40,14 @@ body{background:var(--bg);color:#202124}
         <a class="nav-link px-3" href="{{ url_for('new_sale') }}"><i class="bi bi-cart-plus me-1"></i> Nova venda</a>
         <a class="nav-link px-3" href="{{ url_for('sales') }}"><i class="bi bi-receipt me-1"></i> Vendas</a>
         <a class="nav-link px-3" href="{{ url_for('reports') }}"><i class="bi bi-bar-chart-line me-1"></i> Relatórios</a>
+        <a class="nav-link px-3" href="{{ url_for('financial_report') }}"><i class="bi bi-cash-stack me-1"></i> Financeiro</a>
+        <a class="nav-link px-3" href="{{ url_for('stock_reports') }}"><i class="bi bi-boxes me-1"></i> Análise estoque</a>
         <a class="nav-link px-3" href="{{ url_for('cash') }}"><i class="bi bi-cash-coin me-1"></i> Caixa</a>
         <a class="nav-link px-3" href="{{ url_for('admin_users') }}"><i class="bi bi-people me-1"></i> Usuários</a>
         <a class="nav-link px-3" href="{{ url_for('admin_audit') }}"><i class="bi bi-journal-text me-1"></i> Auditoria</a>
         <a class="nav-link px-3" href="{{ url_for('customers') }}"><i class="bi bi-person-vcard me-1"></i> Clientes</a>
         <a class="nav-link px-3" href="{{ url_for('admin_backup') }}"><i class="bi bi-download me-1"></i> Backup</a>
+        <a class="nav-link px-3" href="{{ url_for('restore_backup') }}"><i class="bi bi-arrow-counterclockwise me-1"></i> Restaurar</a>
         <a class="nav-link px-3" href="{{ url_for('suppliers') }}"><i class="bi bi-truck me-1"></i> Fornecedores</a>
         <a class="nav-link px-3" href="{{ url_for('categories') }}"><i class="bi bi-tags me-1"></i> Categorias</a>
         <span class="nav-link px-3 text-secondary"><i class="bi bi-gear me-1"></i> Configurações</span>
@@ -54,6 +57,7 @@ body{background:var(--bg);color:#202124}
         <a class="nav-link px-3" href="{{ url_for('new_sale') }}"><i class="bi bi-cart-plus me-1"></i> Nova venda</a>
         <a class="nav-link px-3" href="{{ url_for('sales') }}"><i class="bi bi-receipt me-1"></i> Vendas</a>
         <a class="nav-link px-3" href="{{ url_for('cash') }}"><i class="bi bi-cash-coin me-1"></i> Caixa</a>
+        <a class="nav-link px-3" href="{{ url_for('financial_report') }}"><i class="bi bi-cash-stack me-1"></i> Financeiro</a>
         <a class="nav-link px-3" href="{{ url_for('customers') }}"><i class="bi bi-person-vcard me-1"></i> Clientes</a>
       {% endif %}
     </div>

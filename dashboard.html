@@ -1,9 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Dashboard · Pyetro Sapekids<div class="card p-3 p-lg-4 mt-4">
-  <div class="d-flex justify-content-between align-items-center"><div><h3 class="section-title h5 mb-1">⚠️ Produtos com estoque baixo</h3><div class="page-subtitle small">Itens no limite mínimo ou abaixo dele.</div></div><a class="btn btn-outline-primary btn-sm" href="{{ url_for('products') }}">Ver produtos</a></div>
-  <div class="table-responsive mt-3"><table class="table table-hover mb-0"><thead><tr><th>Produto</th><th>Estoque atual</th><th>Mínimo</th></tr></thead><tbody>{% for p in low_products %}<tr><td class="fw-semibold">{{ p.name }}{% if p.brand %} <small class="text-secondary">· {{ p.brand }}</small>{% endif %}</td><td class="text-danger fw-bold">{{ p.stock }}</td><td>{{ p.min_stock }}</td></tr>{% else %}<tr><td colspan="3">Nenhum produto com estoque baixo.</td></tr>{% endfor %}</tbody></table></div>
-</div>
-{% endblock %}
+{% block title %}Dashboard · Pyetro Sapekids{% endblock %}
 {% block content %}
 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-4">
   <div>
@@ -43,6 +39,8 @@
   </div>
 </div>
 
+<div class="card p-3 p-lg-4 mb-4"><div class="d-flex justify-content-between align-items-center"><div><h3 class="section-title h5 mb-1">⚠️ Produtos com estoque baixo</h3><div class="page-subtitle small">Itens no limite mínimo ou abaixo dele.</div></div><a class="btn btn-outline-primary btn-sm" href="{{ url_for('stock_reports') }}">Análise de estoque</a></div><div class="table-responsive mt-3"><table class="table table-hover mb-0"><thead><tr><th>Produto</th><th>Atual</th><th>Mínimo</th></tr></thead><tbody>{% for p in low_products %}<tr><td class="fw-semibold">{{ p.name }}</td><td class="text-danger fw-bold">{{ p.stock }}</td><td>{{ p.min_stock }}</td></tr>{% else %}<tr><td colspan="3">Nenhum produto com estoque baixo.</td></tr>{% endfor %}</tbody></table></div></div>
+
 <div class="row g-3 mb-4">
   <div class="col-md-6 col-xl-3"><div class="card metric-card p-4 h-100"><div class="metric-label">Vendas hoje</div><div class="metric-value mt-1">{{ today_sales }}</div><div class="footer-note mt-2">Faturamento: R$ {{ '%.2f'|format(today_revenue) }}</div></div></div>
   <div class="col-md-6 col-xl-3"><div class="card metric-card p-4 h-100"><div class="metric-label">Faturamento do mês</div><div class="metric-value mt-1">R$ {{ '%.2f'|format(month_revenue) }}</div><div class="footer-note mt-2">{{ month_sales }} venda(s)</div></div></div>
@@ -71,4 +69,11 @@
     </table>
   </div>
 </div>
+
+<div class="row g-4 mt-1">
+  <div class="col-lg-8"><div class="card p-4"><h3 class="section-title h5 mb-1">Vendas dos últimos 7 dias</h3><div class="page-subtitle small mb-3">Faturamento diário</div><canvas id="salesChart" height="100"></canvas></div></div>
+  <div class="col-lg-4"><div class="card p-4 h-100"><h3 class="section-title h5">🏆 Mais vendidos no mês</h3><div class="table-responsive mt-3"><table class="table table-sm"><tbody>{% for p in top_products %}<tr><td>{{ loop.index }}. {{ p.name }}</td><td class="text-end fw-semibold">{{ p.quantity }}</td></tr>{% else %}<tr><td>Nenhuma venda no mês.</td></tr>{% endfor %}</tbody></table></div></div></div>
+</div>
+<div class="card p-4 mt-4"><div class="d-flex justify-content-between align-items-center"><div><h3 class="section-title h5 mb-1">⏳ Estoque parado</h3><div class="page-subtitle small">Sem venda há mais de 60 dias ou nunca vendido.</div></div><a class="btn btn-outline-primary btn-sm" href="{{ url_for('stock_reports') }}">Ver análise completa</a></div><div class="table-responsive mt-3"><table class="table table-hover"><thead><tr><th>Produto</th><th>Estoque</th><th>Última venda</th></tr></thead><tbody>{% for p in stale_products %}<tr><td class="fw-semibold">{{ p.name }}</td><td>{{ p.stock }}</td><td>{{ p.last_sale or 'Nunca vendido' }}</td></tr>{% else %}<tr><td colspan="3">Nenhum produto parado.</td></tr>{% endfor %}</tbody></table></div></div>
 {% endblock %}
+{% block extra_scripts %}<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script><script>document.addEventListener('DOMContentLoaded',function(){const el=document.getElementById('salesChart');if(!el||!window.Chart)return;const d={{ last_days|tojson }};new Chart(el,{type:'line',data:{labels:d.map(x=>x.date),datasets:[{label:'Faturamento (R$)',data:d.map(x=>x.revenue),tension:.3},{label:'Vendas',data:d.map(x=>x.sales),yAxisID:'y1',tension:.3}]},options:{responsive:true,scales:{y:{beginAtZero:true},y1:{beginAtZero:true,position:'right',grid:{drawOnChartArea:false}}}}});});</script>{% endblock %}
