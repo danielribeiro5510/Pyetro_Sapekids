@@ -12,9 +12,9 @@ body{background:var(--bg);color:#202124}
 .topbar{background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:1000}
 .brand{font-weight:800;color:#111;text-decoration:none;letter-spacing:-.3px;display:flex;align-items:center;gap:8px}
 .brand-logo{height:52px;width:165px;object-fit:contain;background:#fff;display:block}
-.nav-link{color:#5f6368!important;font-weight:600;border-radius:10px;margin:3px 2px}
+.nav-link{color:#5f6368!important;font-weight:600;border-radius:10px;margin:3px 2px;transition:.15s ease}
 .nav-link:hover{background:#f1f3f4;color:#111!important}
-.nav-link.active{background:#111!important;color:#fff!important;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.nav-link.active{background:#111!important;color:#fff!important;box-shadow:0 2px 7px rgba(0,0,0,.18)}
 .nav-link.active i{color:#fff!important}
 .role-pill{font-size:.78rem;padding:.35rem .65rem;border-radius:999px;background:#111;color:#fff}
 .page{max-width:1400px;margin:auto;padding:28px 18px 50px}
@@ -29,6 +29,23 @@ body{background:var(--bg);color:#202124}
   {% block extra_head %}{% endblock %}
 </head>
 <body>
+{% macro nav_active(section) -%}
+  {%- set p = request.path -%}
+  {%- if section == 'dashboard' and (p == '/' or p == '/dashboard') -%}active
+  {%- elif section == 'products' and p.startswith('/products') -%}active
+  {%- elif section == 'stock' and (p.startswith('/stock') or p.startswith('/movements')) -%}active
+  {%- elif section == 'new_sale' and p.startswith('/sales/new') -%}active
+  {%- elif section == 'sales' and p.startswith('/sales') and not p.startswith('/sales/new') -%}active
+  {%- elif section == 'reports' and p.startswith('/reports') -%}active
+  {%- elif section == 'cash' and p.startswith('/cash') -%}active
+  {%- elif section == 'users' and p.startswith('/admin/users') -%}active
+  {%- elif section == 'audit' and p.startswith('/admin/audit') -%}active
+  {%- elif section == 'customers' and p.startswith('/customers') -%}active
+  {%- elif section == 'backup' and p.startswith('/admin/backup') -%}active
+  {%- elif section == 'suppliers' and p.startswith('/suppliers') -%}active
+  {%- elif section == 'categories' and p.startswith('/categories') -%}active
+  {%- endif -%}
+{%- endmacro %}
 <nav class="topbar navbar navbar-expand-lg">
   <div class="container-fluid px-3 px-lg-4">
     <a class="brand navbar-brand" href="{{ url_for('admin_dashboard') if is_admin else url_for('dashboard') }}">
@@ -36,27 +53,27 @@ body{background:var(--bg);color:#202124}
     </a>
     <div class="nav-scroll d-flex align-items-center ms-lg-3 flex-grow-1">
       {% if is_admin %}
-        <a class="nav-link px-3" href="{{ url_for('admin_dashboard') }}"><i class="bi bi-speedometer2 me-1"></i> ADM</a>
-        <a class="nav-link px-3" href="{{ url_for('products') }}"><i class="bi bi-box-seam me-1"></i> Produtos</a>
-        <a class="nav-link px-3" href="{{ url_for('movements') }}"><i class="bi bi-arrow-left-right me-1"></i> Estoque</a>
-        <a class="nav-link px-3" href="{{ url_for('new_sale') }}"><i class="bi bi-cart-plus me-1"></i> Nova venda</a>
-        <a class="nav-link px-3" href="{{ url_for('sales') }}"><i class="bi bi-receipt me-1"></i> Vendas</a>
-        <a class="nav-link px-3" href="{{ url_for('reports') }}"><i class="bi bi-bar-chart-line me-1"></i> Relatórios</a>
-        <a class="nav-link px-3" href="{{ url_for('cash') }}"><i class="bi bi-cash-coin me-1"></i> Caixa</a>
-        <a class="nav-link px-3" href="{{ url_for('admin_users') }}"><i class="bi bi-people me-1"></i> Usuários</a>
-        <a class="nav-link px-3" href="{{ url_for('admin_audit') }}"><i class="bi bi-journal-text me-1"></i> Auditoria</a>
-        <a class="nav-link px-3" href="{{ url_for('customers') }}"><i class="bi bi-person-vcard me-1"></i> Clientes</a>
-        <a class="nav-link px-3" href="{{ url_for('admin_backup') }}"><i class="bi bi-download me-1"></i> Backup</a>
-        <a class="nav-link px-3" href="{{ url_for('suppliers') }}"><i class="bi bi-truck me-1"></i> Fornecedores</a>
-        <a class="nav-link px-3" href="{{ url_for('categories') }}"><i class="bi bi-tags me-1"></i> Categorias</a>
+        <a class="nav-link px-3 {{ nav_active('dashboard') }}" href="{{ url_for('admin_dashboard') }}"><i class="bi bi-speedometer2 me-1"></i> ADM</a>
+        <a class="nav-link px-3 {{ nav_active('products') }}" href="{{ url_for('products') }}"><i class="bi bi-box-seam me-1"></i> Produtos</a>
+        <a class="nav-link px-3 {{ nav_active('stock') }}" href="{{ url_for('movements') }}"><i class="bi bi-arrow-left-right me-1"></i> Estoque</a>
+        <a class="nav-link px-3 {{ nav_active('new_sale') }}" href="{{ url_for('new_sale') }}"><i class="bi bi-cart-plus me-1"></i> Nova venda</a>
+        <a class="nav-link px-3 {{ nav_active('sales') }}" href="{{ url_for('sales') }}"><i class="bi bi-receipt me-1"></i> Vendas</a>
+        <a class="nav-link px-3 {{ nav_active('reports') }}" href="{{ url_for('reports') }}"><i class="bi bi-bar-chart-line me-1"></i> Relatórios</a>
+        <a class="nav-link px-3 {{ nav_active('cash') }}" href="{{ url_for('cash') }}"><i class="bi bi-cash-coin me-1"></i> Caixa</a>
+        <a class="nav-link px-3 {{ nav_active('users') }}" href="{{ url_for('admin_users') }}"><i class="bi bi-people me-1"></i> Usuários</a>
+        <a class="nav-link px-3 {{ nav_active('audit') }}" href="{{ url_for('admin_audit') }}"><i class="bi bi-journal-text me-1"></i> Auditoria</a>
+        <a class="nav-link px-3 {{ nav_active('customers') }}" href="{{ url_for('customers') }}"><i class="bi bi-person-vcard me-1"></i> Clientes</a>
+        <a class="nav-link px-3 {{ nav_active('backup') }}" href="{{ url_for('admin_backup') }}"><i class="bi bi-download me-1"></i> Backup</a>
+        <a class="nav-link px-3 {{ nav_active('suppliers') }}" href="{{ url_for('suppliers') }}"><i class="bi bi-truck me-1"></i> Fornecedores</a>
+        <a class="nav-link px-3 {{ nav_active('categories') }}" href="{{ url_for('categories') }}"><i class="bi bi-tags me-1"></i> Categorias</a>
         <span class="nav-link px-3 text-secondary"><i class="bi bi-gear me-1"></i> Configurações</span>
       {% else %}
-        <a class="nav-link px-3" href="{{ url_for('dashboard') }}"><i class="bi bi-speedometer2 me-1"></i> Dashboard</a>
-        <a class="nav-link px-3" href="{{ url_for('products') }}"><i class="bi bi-box-seam me-1"></i> Produtos</a>
-        <a class="nav-link px-3" href="{{ url_for('new_sale') }}"><i class="bi bi-cart-plus me-1"></i> Nova venda</a>
-        <a class="nav-link px-3" href="{{ url_for('sales') }}"><i class="bi bi-receipt me-1"></i> Vendas</a>
-        <a class="nav-link px-3" href="{{ url_for('cash') }}"><i class="bi bi-cash-coin me-1"></i> Caixa</a>
-        <a class="nav-link px-3" href="{{ url_for('customers') }}"><i class="bi bi-person-vcard me-1"></i> Clientes</a>
+        <a class="nav-link px-3 {{ nav_active('dashboard') }}" href="{{ url_for('dashboard') }}"><i class="bi bi-speedometer2 me-1"></i> Dashboard</a>
+        <a class="nav-link px-3 {{ nav_active('products') }}" href="{{ url_for('products') }}"><i class="bi bi-box-seam me-1"></i> Produtos</a>
+        <a class="nav-link px-3 {{ nav_active('new_sale') }}" href="{{ url_for('new_sale') }}"><i class="bi bi-cart-plus me-1"></i> Nova venda</a>
+        <a class="nav-link px-3 {{ nav_active('sales') }}" href="{{ url_for('sales') }}"><i class="bi bi-receipt me-1"></i> Vendas</a>
+        <a class="nav-link px-3 {{ nav_active('cash') }}" href="{{ url_for('cash') }}"><i class="bi bi-cash-coin me-1"></i> Caixa</a>
+        <a class="nav-link px-3 {{ nav_active('customers') }}" href="{{ url_for('customers') }}"><i class="bi bi-person-vcard me-1"></i> Clientes</a>
       {% endif %}
     </div>
     <div class="d-flex align-items-center gap-2 ms-2">
@@ -64,38 +81,6 @@ body{background:var(--bg);color:#202124}
       <a class="btn btn-sm btn-outline-dark" href="{{ url_for('logout') }}">Sair</a>
     </div>
   </div>
-
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-  const path = window.location.pathname.replace(/\\/$/, "");
-  const links = document.querySelectorAll(".nav-scroll a.nav-link");
-  links.forEach(link => {
-    const href = link.getAttribute("href");
-    if (!href) return;
-    const url = new URL(href, window.location.origin);
-    const target = url.pathname.replace(/\\/$/, "");
-    let active = false;
-
-    if (target === path) active = true;
-    else if (target === "/products" && path.startsWith("/products/")) active = true;
-    else if (target === "/sales" && path.startsWith("/sales/")) active = true;
-    else if (target === "/customers" && path.startsWith("/customers/")) active = true;
-    else if (target === "/suppliers" && path.startsWith("/suppliers/")) active = true;
-    else if (target === "/categories" && path.startsWith("/categories/")) active = true;
-    else if (target === "/cash" && path.startsWith("/cash")) active = true;
-    else if (target === "/movements" && (path.startsWith("/movements") || path.startsWith("/stock"))) active = true;
-    else if (target === "/new-sale" && path.startsWith("/new-sale")) active = true;
-    else if (target === "/reports" && path.startsWith("/reports")) active = true;
-    else if (target === "/admin/users" && path.startsWith("/admin/users")) active = true;
-    else if (target === "/admin/audit" && path.startsWith("/admin/audit")) active = true;
-    else if (target === "/admin/backup" && path.startsWith("/admin/backup")) active = true;
-    else if (target === "/dashboard" && (path === "/dashboard" || path === "/")) active = true;
-    else if (target === "/admin" && (path === "/admin" || path === "/admin/dashboard")) active = true;
-
-    if (active) link.classList.add("active");
-  });
-});
-</script>
 </nav>
 
 <main class="page">
