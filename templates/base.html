@@ -44,6 +44,7 @@ body{background:var(--bg);color:#202124}
   {%- elif section == 'backup' and p.startswith('/admin/backup') -%}active
   {%- elif section == 'suppliers' and p.startswith('/suppliers') -%}active
   {%- elif section == 'categories' and p.startswith('/categories') -%}active
+  {%- elif section == 'cleanup' and p.startswith('/admin/limpeza') -%}active
   {%- elif section == 'settings' and p.startswith('/configuracoes') -%}active
   {%- endif -%}
 {%- endmacro %}

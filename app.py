@@ -1829,6 +1829,82 @@ def admin_delete_user(user_id):
     return redirect(url_for("admin_users"))
 
 
+
+@app.route("/admin/limpeza", methods=["POST"])
+@login_required
+@admin_required
+def admin_cleanup():
+    """Executa limpezas administrativas específicas, somente por ADM."""
+    action = request.form.get("action", "").strip()
+    conn = db()
+
+    try:
+        if action == "audit":
+            # Limpa completamente a auditoria. A própria limpeza não é registrada,
+            # para que o usuário não encontre um novo registro imediatamente depois.
+            conn.execute("DELETE FROM audit_logs")
+            conn.commit()
+            flash("Histórico de auditoria excluído.", "success")
+
+        elif action == "movements":
+            # Exclui apenas o histórico de movimentações.
+            # Não altera o estoque atual dos produtos.
+            conn.execute("DELETE FROM movements")
+            conn.commit()
+            flash("Histórico de movimentações excluído. O estoque atual foi mantido.", "success")
+
+        elif action == "sales":
+            # Exclui o histórico de vendas e os itens das vendas.
+            # Antes disso, devolve ao estoque somente as quantidades de vendas
+            # que ainda estavam concluídas; vendas CANCELLED não reduzem o estoque.
+            completed_sales = conn.execute(
+                "SELECT id, sale_number FROM sales WHERE status <> 'CANCELLED'"
+            ).fetchall()
+
+            for sale in completed_sales:
+                items = conn.execute(
+                    "SELECT product_id, quantity FROM sale_items WHERE sale_id = ?",
+                    (sale["id"],)
+                ).fetchall()
+
+                for item in items:
+                    product = conn.execute(
+                        "SELECT id, stock FROM products WHERE id = ?",
+                        (item["product_id"],)
+                    ).fetchone()
+                    if product:
+                        conn.execute(
+                            "UPDATE products SET stock = ? WHERE id = ?",
+                            (int(product["stock"] or 0) + int(item["quantity"] or 0), product["id"])
+                        )
+
+                # Remove os movimentos automáticos gerados pela venda.
+                sale_number = int(sale["sale_number"] or sale["id"])
+                conn.execute(
+                    "DELETE FROM movements WHERE note = ?",
+                    (f"Venda #{sale_number}",)
+                )
+
+            # Remove trocas/devoluções ligadas às vendas antes dos itens/vendas.
+            conn.execute("DELETE FROM return_items")
+            conn.execute("DELETE FROM returns")
+            conn.execute("DELETE FROM sale_items")
+            conn.execute("DELETE FROM sales")
+            conn.commit()
+            flash("Histórico de vendas excluído e estoque das vendas concluídas restaurado.", "success")
+
+        else:
+            flash("Nenhuma limpeza foi selecionada.", "warning")
+
+    except Exception as exc:
+        conn.rollback()
+        flash(f"Não foi possível executar a limpeza: {exc}", "danger")
+    finally:
+        conn.close()
+
+    return redirect(url_for("admin_dashboard"))
+
+
 @app.route("/admin/audit")
 @login_required
 @admin_required
