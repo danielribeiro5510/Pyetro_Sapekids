@@ -309,6 +309,7 @@ def init_db():
     add_column_if_missing(conn, "products", "image_url", "TEXT")
     add_column_if_missing(conn, "sales", "status", "TEXT NOT NULL DEFAULT 'COMPLETED'")
     add_column_if_missing(conn, "sales", "sale_number", "INTEGER")
+    add_column_if_missing(conn, "sales", "sale_token", "TEXT")
     add_column_if_missing(conn, "sale_items", "unit_cost", "DOUBLE PRECISION NOT NULL DEFAULT 0" if conn.postgres else "REAL NOT NULL DEFAULT 0")
     conn.execute("UPDATE sales SET status='COMPLETED' WHERE status IS NULL OR status=''" )
     # Backfill sale item cost from current product cost where historical cost is unavailable.
@@ -368,6 +369,8 @@ def init_db():
             conn.execute("ALTER TABLE sales ADD COLUMN cash_session_id INTEGER")
         if "sale_number" not in cols:
             conn.execute("ALTER TABLE sales ADD COLUMN sale_number INTEGER")
+        if "sale_token" not in cols:
+            conn.execute("ALTER TABLE sales ADD COLUMN sale_token TEXT")
         # Preenche o número exibido das vendas antigas sem alterar o ID interno.
         existing_sales = conn.execute("SELECT id, sale_number FROM sales WHERE status <> 'CANCELLED' ORDER BY id").fetchall()
         next_number = 1
@@ -376,6 +379,7 @@ def init_db():
                 conn.execute("UPDATE sales SET sale_number = ? WHERE id = ?", (next_number, old_sale["id"]))
             next_number += 1
         conn.execute("UPDATE sales SET subtotal = total WHERE subtotal = 0 AND total <> 0")
+        conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_sales_sale_token ON sales(sale_token)")
         conn.commit()
     else:
         conn.execute("""
@@ -860,8 +864,9 @@ def edit_product(product_id):
         flash("Produto atualizado.", "success")
         return redirect(url_for("products"))
 
+    suppliers = conn.execute("SELECT * FROM suppliers ORDER BY name").fetchall()
+    categories = conn.execute("SELECT * FROM categories ORDER BY name").fetchall()
     conn.close()
-    suppliers = conn.execute("SELECT * FROM suppliers ORDER BY name").fetchall(); categories = conn.execute("SELECT * FROM categories ORDER BY name").fetchall()
     return render_template("product_form.html", product=product, suppliers=suppliers, categories=categories)
 
 
@@ -1173,18 +1178,22 @@ def new_sale():
                 ).fetchone()["n"]
                 sale_number = int(current_sales_count or 0) + 1
 
+                sale_token = (request.form.get("sale_token") or session.get("sale_form_token") or "").strip()
+                if not sale_token:
+                    sale_token = secrets.token_urlsafe(24)
+
                 if conn.postgres:
                     cur = conn.execute(
-                        """INSERT INTO sales (total, subtotal, discount_percent, customer_id, payment_method, username, created_at, cash_session_id, sale_number, status)
-                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'COMPLETED') RETURNING id""",
-                        (total, subtotal_total, discount_percent, customer_id, payment_method, username, now, cash_session_id, sale_number)
+                        """INSERT INTO sales (total, subtotal, discount_percent, customer_id, payment_method, username, created_at, cash_session_id, sale_number, sale_token, status)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'COMPLETED') RETURNING id""",
+                        (total, subtotal_total, discount_percent, customer_id, payment_method, username, now, cash_session_id, sale_number, sale_token)
                     )
                     sale_id = cur.fetchone()["id"]
                 else:
                     cur = conn.execute(
-                        """INSERT INTO sales (total, subtotal, discount_percent, customer_id, payment_method, username, created_at, cash_session_id, sale_number, status)
-                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'COMPLETED')""",
-                        (total, subtotal_total, discount_percent, customer_id, payment_method, username, now, cash_session_id, sale_number)
+                        """INSERT INTO sales (total, subtotal, discount_percent, customer_id, payment_method, username, created_at, cash_session_id, sale_number, sale_token, status)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'COMPLETED')""",
+                        (total, subtotal_total, discount_percent, customer_id, payment_method, username, now, cash_session_id, sale_number, sale_token)
                     )
                     sale_id = cur.lastrowid
 
@@ -1204,10 +1213,20 @@ def new_sale():
                 conn.commit()
                 audit("NOVA VENDA", f"Venda #{sale_number} - Subtotal R$ {subtotal_total:.2f} - Desconto {discount_percent:.2f}% - Total R$ {total:.2f}")
                 session.pop("sale_cart", None)
+                session.pop("sale_form_token", None)
                 flash(f"Venda #{sale_number} finalizada com sucesso.", "success")
                 return redirect(url_for("sale_detail", sale_id=sale_id))
             except Exception as exc:
                 conn.rollback()
+                # Protege contra duplo clique/reenvio: o mesmo token de venda só pode ser processado uma vez.
+                try:
+                    existing = conn.execute("SELECT id, sale_number FROM sales WHERE sale_token = ? LIMIT 1", (sale_token,)).fetchone()
+                except Exception:
+                    existing = None
+                if existing:
+                    session.pop("sale_form_token", None)
+                    flash(f"Venda #{existing['sale_number'] or existing['id']} já foi finalizada. O segundo clique foi ignorado.", "info")
+                    return redirect(url_for("sale_detail", sale_id=existing["id"]))
                 flash(str(exc), "danger")
                 return redirect(url_for("new_sale"))
             finally:
@@ -1219,7 +1238,9 @@ def new_sale():
     open_cash = conn.execute("SELECT * FROM cash_sessions WHERE status='OPEN' ORDER BY id DESC LIMIT 1").fetchone()
     conn.close()
     subtotal = sum(i["quantity"] * i["unit_price"] for i in cart)
-    return render_template("new_sale.html", products=products, customers=customers, cart=cart, total=subtotal, subtotal=subtotal, open_cash=open_cash)
+    if not session.get("sale_form_token"):
+        session["sale_form_token"] = secrets.token_urlsafe(24)
+    return render_template("new_sale.html", products=products, customers=customers, cart=cart, total=subtotal, subtotal=subtotal, open_cash=open_cash, sale_form_token=session["sale_form_token"])
 
 
 @app.route("/sales/<int:sale_id>")
