@@ -17,13 +17,31 @@ app = Flask(__name__)
 TZ = ZoneInfo("America/Sao_Paulo")
 
 def parse_money(value, default=0.0):
+    """Parse monetary input in Brazilian or standard notation.
+
+    59.99 -> 59.99
+    59,99 -> 59.99
+    1.399,99 -> 1399.99
+    1,399.99 -> 1399.99
+    """
     try:
-        return float(str(value or default).strip().replace("R$", "").replace(".", "").replace(",", "."))
+        text = str(value if value is not None else default).strip()
+        text = text.replace("R$", "").replace(" ", "")
+        if not text:
+            return float(default)
+        if "," in text and "." in text:
+            if text.rfind(",") > text.rfind("."):
+                text = text.replace(".", "").replace(",", ".")
+            else:
+                text = text.replace(",", "")
+        elif "," in text:
+            text = text.replace(",", ".")
+        return float(text)
     except (ValueError, TypeError):
         try:
             return float(value or default)
         except (ValueError, TypeError):
-            return default
+            return float(default)
 
 def table_columns(conn, table):
     if conn.postgres:
