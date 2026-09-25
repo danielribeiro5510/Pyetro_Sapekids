@@ -460,6 +460,7 @@ def inject_user_context():
         "current_username": user["username"] if user else "",
         "current_role": user["role"] if user else "operator",
         "is_admin": bool(user and user["role"] == "admin"),
+        "now_display": datetime.now(TZ).strftime("%d/%m/%Y %H:%M"),
     }
 
 
@@ -1027,26 +1028,68 @@ def new_sale():
 @app.route("/sales/<int:sale_id>")
 @login_required
 def sale_detail(sale_id):
-    conn = db()
-    sale = conn.execute("""
-        SELECT s.*, COALESCE(c.name, '') AS customer_name, COALESCE(c.cpf, '') AS customer_cpf,
-               COALESCE(c.phone, '') AS customer_phone
-        FROM sales s LEFT JOIN customers c ON c.id = s.customer_id
-        WHERE s.id = ?
-    """, (sale_id,)).fetchone()
-    if not sale:
-        conn.close()
-        return "Venda não encontrada", 404
+    """Exibe uma venda de forma compatível com bancos antigos e novos.
 
-    items = conn.execute("""
-        SELECT si.*, p.name, p.category, p.brand, p.color, p.size
-        FROM sale_items si
-        JOIN products p ON p.id = si.product_id
-        WHERE si.sale_id = ?
-        ORDER BY si.id
-    """, (sale_id,)).fetchall()
-    conn.close()
-    return render_template("sale_detail.html", sale=sale, items=items)
+    Se uma instalação antiga ainda não tiver alguma coluna opcional de clientes/desconto,
+    a venda continua sendo aberta usando os dados básicos, em vez de gerar HTTP 500.
+    """
+    conn = db()
+    try:
+        try:
+            sale = conn.execute("""
+                SELECT s.*,
+                       COALESCE(c.name, '') AS customer_name,
+                       COALESCE(c.cpf, '') AS customer_cpf,
+                       COALESCE(c.phone, '') AS customer_phone
+                FROM sales s
+                LEFT JOIN customers c ON c.id = s.customer_id
+                WHERE s.id = ?
+            """, (sale_id,)).fetchone()
+        except Exception:
+            conn.rollback()
+            sale = conn.execute("""
+                SELECT s.*, '' AS customer_name, '' AS customer_cpf, '' AS customer_phone
+                FROM sales s WHERE s.id = ?
+            """, (sale_id,)).fetchone()
+
+        if not sale:
+            return "Venda não encontrada", 404
+
+        items = conn.execute("""
+            SELECT si.*, p.name, p.category, p.brand, p.color, p.size
+            FROM sale_items si
+            LEFT JOIN products p ON p.id = si.product_id
+            WHERE si.sale_id = ?
+            ORDER BY si.id
+        """, (sale_id,)).fetchall()
+
+        # Normaliza campos opcionais para o template.
+        sale_data = dict(sale)
+        sale_data.setdefault("subtotal", sale_data.get("total", 0) or 0)
+        sale_data.setdefault("discount_percent", 0)
+        sale_data.setdefault("customer_name", "")
+        sale_data.setdefault("customer_cpf", "")
+        sale_data.setdefault("customer_phone", "")
+
+        item_data = []
+        for item in items:
+            d = dict(item)
+            d.setdefault("name", "Produto removido")
+            d.setdefault("brand", "")
+            d.setdefault("color", "")
+            d.setdefault("size", "")
+            d.setdefault("unit_price", 0)
+            d.setdefault("subtotal", 0)
+            item_data.append(d)
+
+        return render_template("sale_detail.html", sale=sale_data, items=item_data)
+    except Exception as exc:
+        conn.rollback()
+        app.logger.exception("Erro ao abrir venda #%s", sale_id)
+        flash("Não foi possível abrir os detalhes desta venda. A venda permanece registrada.", "danger")
+        return redirect(url_for("sales"))
+    finally:
+        conn.close()
 
 
 @app.route("/customers")

@@ -1,5 +1,8 @@
 
-<style>
+
+{% extends "base.html" %}
+
+{% block extra_head %}<style>
 @media print {
     .no-print { display: none !important; }
     .sales-print-area {
@@ -15,8 +18,7 @@
     @page { margin: 12mm; }
 }
 .print-header { display: none; }
-</style>
-{% extends "base.html" %}
+</style>{% endblock %}
 
 {% block title %}Vendas - Pyetro Sapekids{% endblock %}
 
