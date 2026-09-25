@@ -260,6 +260,24 @@ def init_db():
                 created_at TEXT NOT NULL
             )
         """)
+        # Migra instalações antigas de clientes sem apagar os dados existentes.
+        customer_cols = {
+            row["column_name"] for row in conn.execute(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = 'customers'"
+            ).fetchall()
+        }
+        if "cpf" not in customer_cols:
+            conn.execute("ALTER TABLE customers ADD COLUMN cpf TEXT")
+        if "phone" not in customer_cols:
+            conn.execute("ALTER TABLE customers ADD COLUMN phone TEXT")
+        if "whatsapp" not in customer_cols:
+            conn.execute("ALTER TABLE customers ADD COLUMN whatsapp TEXT")
+        if "address" not in customer_cols:
+            conn.execute("ALTER TABLE customers ADD COLUMN address TEXT")
+        if "created_at" not in customer_cols:
+            conn.execute("ALTER TABLE customers ADD COLUMN created_at TEXT")
+            conn.execute("UPDATE customers SET created_at = ? WHERE created_at IS NULL", (datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S"),))
+
         cols = {
             row["column_name"] for row in conn.execute(
                 "SELECT column_name FROM information_schema.columns WHERE table_name = 'sales'"
@@ -273,6 +291,15 @@ def init_db():
             conn.execute("ALTER TABLE sales ADD COLUMN discount_percent DOUBLE PRECISION NOT NULL DEFAULT 0")
         if "cash_session_id" not in cols:
             conn.execute("ALTER TABLE sales ADD COLUMN cash_session_id INTEGER")
+        if "sale_number" not in cols:
+            conn.execute("ALTER TABLE sales ADD COLUMN sale_number INTEGER")
+        # Preenche o número exibido das vendas antigas sem alterar o ID interno.
+        existing_sales = conn.execute("SELECT id, sale_number FROM sales ORDER BY id").fetchall()
+        next_number = 1
+        for old_sale in existing_sales:
+            if old_sale["sale_number"] is None:
+                conn.execute("UPDATE sales SET sale_number = ? WHERE id = ?", (next_number, old_sale["id"]))
+            next_number += 1
         conn.execute("UPDATE sales SET subtotal = total WHERE subtotal = 0 AND total <> 0")
         conn.commit()
     else:
@@ -296,6 +323,15 @@ def init_db():
             conn.execute("ALTER TABLE sales ADD COLUMN discount_percent REAL NOT NULL DEFAULT 0")
         if "cash_session_id" not in cols:
             conn.execute("ALTER TABLE sales ADD COLUMN cash_session_id INTEGER")
+        if "sale_number" not in cols:
+            conn.execute("ALTER TABLE sales ADD COLUMN sale_number INTEGER")
+        # Preenche o número exibido das vendas antigas sem alterar o ID interno.
+        existing_sales = conn.execute("SELECT id, sale_number FROM sales ORDER BY id").fetchall()
+        next_number = 1
+        for old_sale in existing_sales:
+            if old_sale["sale_number"] is None:
+                conn.execute("UPDATE sales SET sale_number = ? WHERE id = ?", (next_number, old_sale["id"]))
+            next_number += 1
         conn.execute("UPDATE sales SET subtotal = total WHERE subtotal = 0 AND total <> 0")
         conn.commit()
 
@@ -991,7 +1027,9 @@ def new_sale():
                 return redirect(url_for("new_sale"))
 
             try:
-                discount_percent = float(request.form.get("discount_percent") or 0)
+                # Aceita tanto 10.5 quanto 10,5 no padrão brasileiro.
+                discount_raw = (request.form.get("discount_percent") or "0").strip().replace(",", ".")
+                discount_percent = float(discount_raw)
             except (ValueError, TypeError):
                 discount_percent = 0
             if discount_percent < 0 or discount_percent > 100:
@@ -1036,18 +1074,25 @@ def new_sale():
                 ).fetchone()
                 cash_session_id = open_cash["id"] if open_cash else None
 
+                # Número visível da venda. O ID interno nunca é reutilizado.
+                # Se todas as vendas forem excluídas, a próxima começa novamente em #1.
+                last_sale_number = conn.execute(
+                    "SELECT COALESCE(MAX(sale_number), 0) AS n FROM sales"
+                ).fetchone()["n"]
+                sale_number = int(last_sale_number or 0) + 1
+
                 if conn.postgres:
                     cur = conn.execute(
-                        """INSERT INTO sales (total, subtotal, discount_percent, customer_id, payment_method, username, created_at, cash_session_id)
-                           VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
-                        (total, subtotal_total, discount_percent, customer_id, payment_method, username, now, cash_session_id)
+                        """INSERT INTO sales (total, subtotal, discount_percent, customer_id, payment_method, username, created_at, cash_session_id, sale_number)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
+                        (total, subtotal_total, discount_percent, customer_id, payment_method, username, now, cash_session_id, sale_number)
                     )
                     sale_id = cur.fetchone()["id"]
                 else:
                     cur = conn.execute(
-                        """INSERT INTO sales (total, subtotal, discount_percent, customer_id, payment_method, username, created_at, cash_session_id)
-                           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                        (total, subtotal_total, discount_percent, customer_id, payment_method, username, now, cash_session_id)
+                        """INSERT INTO sales (total, subtotal, discount_percent, customer_id, payment_method, username, created_at, cash_session_id, sale_number)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        (total, subtotal_total, discount_percent, customer_id, payment_method, username, now, cash_session_id, sale_number)
                     )
                     sale_id = cur.lastrowid
 
@@ -1061,13 +1106,13 @@ def new_sale():
                     conn.execute(
                         """INSERT INTO movements (product_id, type, quantity, note, created_at)
                            VALUES (?, ?, ?, ?, ?)""",
-                        (product["id"], "SAIDA", quantity, f"Venda #{sale_id}", now)
+                        (product["id"], "SAIDA", quantity, f"Venda #{sale_number}", now)
                     )
 
                 conn.commit()
-                audit("NOVA VENDA", f"Venda #{sale_id} - Subtotal R$ {subtotal_total:.2f} - Desconto {discount_percent:.2f}% - Total R$ {total:.2f}")
+                audit("NOVA VENDA", f"Venda #{sale_number} - Subtotal R$ {subtotal_total:.2f} - Desconto {discount_percent:.2f}% - Total R$ {total:.2f}")
                 session.pop("sale_cart", None)
-                flash(f"Venda #{sale_id} finalizada com sucesso.", "success")
+                flash(f"Venda #{sale_number} finalizada com sucesso.", "success")
                 return redirect(url_for("sale_detail", sale_id=sale_id))
             except Exception as exc:
                 conn.rollback()
@@ -1171,6 +1216,7 @@ def customers():
 @app.route("/customers/new", methods=["GET", "POST"])
 @login_required
 def new_customer():
+    return_to = request.values.get("return_to", "")
     if request.method == "POST":
         name = request.form.get("name", "").strip()
         cpf = request.form.get("cpf", "").strip()
@@ -1179,26 +1225,34 @@ def new_customer():
         address = request.form.get("address", "").strip()
         if not name:
             flash("Informe o nome do cliente.", "danger")
-            return render_template("customer_form.html", customer=None)
+            return render_template("customer_form.html", customer=None, return_to=return_to)
         conn = db()
         now = datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
-        if conn.postgres:
-            cur = conn.execute("""INSERT INTO customers (name, cpf, phone, whatsapp, address, created_at)
-                                  VALUES (?, ?, ?, ?, ?, ?) RETURNING id""",
-                               (name, cpf, phone, whatsapp, address, now))
-            customer_id = cur.fetchone()["id"]
-        else:
-            cur = conn.execute("""INSERT INTO customers (name, cpf, phone, whatsapp, address, created_at)
-                                  VALUES (?, ?, ?, ?, ?, ?)""",
-                               (name, cpf, phone, whatsapp, address, now))
-            customer_id = cur.lastrowid
-        conn.commit(); conn.close()
+        try:
+            if conn.postgres:
+                cur = conn.execute("""INSERT INTO customers (name, cpf, phone, whatsapp, address, created_at)
+                                      VALUES (?, ?, ?, ?, ?, ?) RETURNING id""",
+                                   (name, cpf, phone, whatsapp, address, now))
+                customer_id = cur.fetchone()["id"]
+            else:
+                cur = conn.execute("""INSERT INTO customers (name, cpf, phone, whatsapp, address, created_at)
+                                      VALUES (?, ?, ?, ?, ?, ?)""",
+                                   (name, cpf, phone, whatsapp, address, now))
+                customer_id = cur.lastrowid
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            app.logger.exception("Erro ao cadastrar cliente")
+            flash("Não foi possível cadastrar o cliente. Verifique os dados e tente novamente.", "danger")
+            conn.close()
+            return render_template("customer_form.html", customer=None, return_to=return_to)
+        conn.close()
         audit("CRIAÇÃO DE CLIENTE", f"Cliente #{customer_id} - {name}")
         flash("Cliente cadastrado com sucesso.", "success")
-        if request.form.get("return_to") == "sale":
+        if return_to == "sale":
             return redirect(url_for("new_sale"))
         return redirect(url_for("customers"))
-    return render_template("customer_form.html", customer=None)
+    return render_template("customer_form.html", customer=None, return_to=return_to)
 
 
 @app.route("/customers/<int:customer_id>/edit", methods=["GET", "POST"])
@@ -1700,6 +1754,8 @@ def delete_sale(sale_id):
             flash("Venda não encontrada.", "danger")
             return redirect(url_for("sales"))
 
+        display_sale_number = int(sale["sale_number"] or sale_id)
+
         items = conn.execute(
             "SELECT * FROM sale_items WHERE sale_id = ?",
             (sale_id,)
@@ -1722,7 +1778,7 @@ def delete_sale(sale_id):
                 """DELETE FROM movements
                    WHERE product_id = ? AND type = 'SAIDA'
                      AND note = ?""",
-                (item["product_id"], f"Venda #{sale_id}")
+                (item["product_id"], f"Venda #{display_sale_number}")
             )
 
         conn.execute("DELETE FROM sale_items WHERE sale_id = ?", (sale_id,))
@@ -1731,9 +1787,9 @@ def delete_sale(sale_id):
 
         audit(
             "EXCLUSÃO DE VENDA",
-            f"Venda #{sale_id} - estoque dos itens restaurado"
+            f"Venda #{display_sale_number} - estoque dos itens restaurado"
         )
-        flash(f"Venda #{sale_id} excluída e estoque restaurado.", "success")
+        flash(f"Venda #{display_sale_number} excluída e estoque restaurado.", "success")
 
     except Exception as exc:
         conn.rollback()
