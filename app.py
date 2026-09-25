@@ -1050,6 +1050,39 @@ def stock(product_id):
     )
 
 
+@app.route("/stock")
+@login_required
+def stock_overview():
+    conn = db()
+    search = request.args.get("search", "").strip()
+    if search:
+        like = f"%{search}%"
+        products = conn.execute("""
+            SELECT id,name,category,brand,color,size,price,cost,stock,min_stock,barcode
+            FROM products
+            WHERE name LIKE ? OR brand LIKE ? OR category LIKE ? OR barcode LIKE ?
+            ORDER BY name, brand, color, size
+        """, (like, like, like, like)).fetchall()
+    else:
+        products = conn.execute("""
+            SELECT id,name,category,brand,color,size,price,cost,stock,min_stock,barcode
+            FROM products
+            ORDER BY name, brand, color, size
+        """).fetchall()
+    total_products = len(products)
+    total_units = sum(int(p["stock"] or 0) for p in products)
+    low_stock = sum(1 for p in products if int(p["stock"] or 0) <= int(p["min_stock"] or 0))
+    conn.close()
+    return render_template(
+        "stock_overview.html",
+        products=products,
+        search=search,
+        total_products=total_products,
+        total_units=total_units,
+        low_stock=low_stock,
+    )
+
+
 @app.route("/movements")
 @login_required
 def movements():

@@ -13,7 +13,7 @@ body{background:var(--bg);color:#202124}
 .brand{font-weight:800;color:#111;text-decoration:none;letter-spacing:-.3px;display:flex;align-items:center;gap:8px}
 .brand-logo{height:52px;width:165px;object-fit:contain;background:#fff;display:block}
 .nav-link{color:#5f6368!important;font-weight:600;border-radius:10px;margin:3px 2px}
-.nav-link:hover,.nav-link.active{background:#f1f3f4;color:#111!important}
+.nav-link:hover{background:#f1f3f4;color:#111!important}.nav-link.active{background:#111;color:#fff!important;box-shadow:0 2px 0 #111;font-weight:800}
 .role-pill{font-size:.78rem;padding:.35rem .65rem;border-radius:999px;background:#111;color:#fff}
 .page{max-width:1400px;margin:auto;padding:28px 18px 50px}
 .card{border:1px solid var(--border);border-radius:16px;box-shadow:0 5px 20px rgba(20,20,20,.04)}
@@ -34,31 +34,32 @@ body{background:var(--bg);color:#202124}
     </a>
     <div class="nav-scroll d-flex align-items-center ms-lg-3 flex-grow-1">
       {% if is_admin %}
-        <a class="nav-link px-3" href="{{ url_for('admin_dashboard') }}"><i class="bi bi-speedometer2 me-1"></i> ADM</a>
-        <a class="nav-link px-3" href="{{ url_for('products') }}"><i class="bi bi-box-seam me-1"></i> Produtos</a>
-        <a class="nav-link px-3" href="{{ url_for('movements') }}"><i class="bi bi-arrow-left-right me-1"></i> Estoque</a>
-        <a class="nav-link px-3" href="{{ url_for('new_sale') }}"><i class="bi bi-cart-plus me-1"></i> Nova venda</a>
-        <a class="nav-link px-3" href="{{ url_for('sales') }}"><i class="bi bi-receipt me-1"></i> Vendas</a>
-        <a class="nav-link px-3" href="{{ url_for('reports') }}"><i class="bi bi-bar-chart-line me-1"></i> Relatórios</a>
-        <a class="nav-link px-3" href="{{ url_for('financial_report') }}"><i class="bi bi-cash-stack me-1"></i> Financeiro</a>
-        <a class="nav-link px-3" href="{{ url_for('stock_reports') }}"><i class="bi bi-boxes me-1"></i> Análise estoque</a>
-        <a class="nav-link px-3" href="{{ url_for('cash') }}"><i class="bi bi-cash-coin me-1"></i> Caixa</a>
-        <a class="nav-link px-3" href="{{ url_for('admin_users') }}"><i class="bi bi-people me-1"></i> Usuários</a>
-        <a class="nav-link px-3" href="{{ url_for('admin_audit') }}"><i class="bi bi-journal-text me-1"></i> Auditoria</a>
-        <a class="nav-link px-3" href="{{ url_for('customers') }}"><i class="bi bi-person-vcard me-1"></i> Clientes</a>
-        <a class="nav-link px-3" href="{{ url_for('admin_backup') }}"><i class="bi bi-download me-1"></i> Backup</a>
-        <a class="nav-link px-3" href="{{ url_for('restore_backup') }}"><i class="bi bi-arrow-counterclockwise me-1"></i> Restaurar</a>
-        <a class="nav-link px-3" href="{{ url_for('suppliers') }}"><i class="bi bi-truck me-1"></i> Fornecedores</a>
-        <a class="nav-link px-3" href="{{ url_for('categories') }}"><i class="bi bi-tags me-1"></i> Categorias</a>
+        <a class="nav-link px-3 {% if request.endpoint == 'admin_dashboard' %}active{% endif %}" href="{{ url_for('admin_dashboard') }}"><i class="bi bi-speedometer2 me-1"></i> ADM</a>
+        <a class="nav-link px-3 {% if request.endpoint in ['products','new_product','edit_product'] %}active{% endif %}" href="{{ url_for('products') }}"><i class="bi bi-box-seam me-1"></i> Produtos</a>
+        <a class="nav-link px-3 {% if request.endpoint in ['stock_overview','stock','stock_adjust'] %}active{% endif %}" href="{{ url_for('stock_overview') }}"><i class="bi bi-boxes me-1"></i> Estoque</a>
+        <a class="nav-link px-3 {% if request.endpoint == 'movements' %}active{% endif %}" href="{{ url_for('movements') }}"><i class="bi bi-arrow-left-right me-1"></i> Movimentações</a>
+        <a class="nav-link px-3 {% if request.endpoint == 'new_sale' %}active{% endif %}" href="{{ url_for('new_sale') }}"><i class="bi bi-cart-plus me-1"></i> Nova venda</a>
+        <a class="nav-link px-3 {% if request.endpoint in ['sales','sale_detail','cancel_sale','return_sale'] %}active{% endif %}" href="{{ url_for('sales') }}"><i class="bi bi-receipt me-1"></i> Vendas</a>
+        <a class="nav-link px-3 {% if request.endpoint in ['reports'] %}active{% endif %}" href="{{ url_for('reports') }}"><i class="bi bi-bar-chart-line me-1"></i> Relatórios</a>
+        <a class="nav-link px-3 {% if request.endpoint in ['financial_report','export_period_xlsx'] %}active{% endif %}" href="{{ url_for('financial_report') }}"><i class="bi bi-cash-stack me-1"></i> Financeiro</a>
+        <a class="nav-link px-3 {% if request.endpoint == 'stock_reports' %}active{% endif %}" href="{{ url_for('stock_reports') }}"><i class="bi bi-boxes me-1"></i> Análise estoque</a>
+        <a class="nav-link px-3 {% if request.endpoint in ['cash','cash_movement'] %}active{% endif %}" href="{{ url_for('cash') }}"><i class="bi bi-cash-coin me-1"></i> Caixa</a>
+        <a class="nav-link px-3 {% if request.endpoint in ['admin_users','new_user','edit_user'] %}active{% endif %}" href="{{ url_for('admin_users') }}"><i class="bi bi-people me-1"></i> Usuários</a>
+        <a class="nav-link px-3 {% if request.endpoint == 'admin_audit' %}active{% endif %}" href="{{ url_for('admin_audit') }}"><i class="bi bi-journal-text me-1"></i> Auditoria</a>
+        <a class="nav-link px-3 {% if request.endpoint in ['customers','new_customer','edit_customer','customer_history'] %}active{% endif %}" href="{{ url_for('customers') }}"><i class="bi bi-person-vcard me-1"></i> Clientes</a>
+        <a class="nav-link px-3 {% if request.endpoint == 'admin_backup' %}active{% endif %}" href="{{ url_for('admin_backup') }}"><i class="bi bi-download me-1"></i> Backup</a>
+        <a class="nav-link px-3 {% if request.endpoint == 'restore_backup' %}active{% endif %}" href="{{ url_for('restore_backup') }}"><i class="bi bi-arrow-counterclockwise me-1"></i> Restaurar</a>
+        <a class="nav-link px-3 {% if request.endpoint in ['suppliers','new_supplier','edit_supplier'] %}active{% endif %}" href="{{ url_for('suppliers') }}"><i class="bi bi-truck me-1"></i> Fornecedores</a>
+        <a class="nav-link px-3 {% if request.endpoint == 'categories' %}active{% endif %}" href="{{ url_for('categories') }}"><i class="bi bi-tags me-1"></i> Categorias</a>
         <span class="nav-link px-3 text-secondary"><i class="bi bi-gear me-1"></i> Configurações</span>
       {% else %}
-        <a class="nav-link px-3" href="{{ url_for('dashboard') }}"><i class="bi bi-speedometer2 me-1"></i> Dashboard</a>
-        <a class="nav-link px-3" href="{{ url_for('products') }}"><i class="bi bi-box-seam me-1"></i> Produtos</a>
-        <a class="nav-link px-3" href="{{ url_for('new_sale') }}"><i class="bi bi-cart-plus me-1"></i> Nova venda</a>
-        <a class="nav-link px-3" href="{{ url_for('sales') }}"><i class="bi bi-receipt me-1"></i> Vendas</a>
-        <a class="nav-link px-3" href="{{ url_for('cash') }}"><i class="bi bi-cash-coin me-1"></i> Caixa</a>
-        <a class="nav-link px-3" href="{{ url_for('financial_report') }}"><i class="bi bi-cash-stack me-1"></i> Financeiro</a>
-        <a class="nav-link px-3" href="{{ url_for('customers') }}"><i class="bi bi-person-vcard me-1"></i> Clientes</a>
+        <a class="nav-link px-3 {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}"><i class="bi bi-speedometer2 me-1"></i> Dashboard</a>
+        <a class="nav-link px-3 {% if request.endpoint in ['products','new_product','edit_product'] %}active{% endif %}" href="{{ url_for('products') }}"><i class="bi bi-box-seam me-1"></i> Produtos</a>
+        <a class="nav-link px-3 {% if request.endpoint == 'new_sale' %}active{% endif %}" href="{{ url_for('new_sale') }}"><i class="bi bi-cart-plus me-1"></i> Nova venda</a>
+        <a class="nav-link px-3 {% if request.endpoint in ['sales','sale_detail','cancel_sale','return_sale'] %}active{% endif %}" href="{{ url_for('sales') }}"><i class="bi bi-receipt me-1"></i> Vendas</a>
+        <a class="nav-link px-3 {% if request.endpoint in ['cash','cash_movement'] %}active{% endif %}" href="{{ url_for('cash') }}"><i class="bi bi-cash-coin me-1"></i> Caixa</a>
+        <a class="nav-link px-3 {% if request.endpoint in ['financial_report','export_period_xlsx'] %}active{% endif %}" href="{{ url_for('financial_report') }}"><i class="bi bi-cash-stack me-1"></i> Financeiro</a>
+        <a class="nav-link px-3 {% if request.endpoint in ['customers','new_customer','edit_customer','customer_history'] %}active{% endif %}" href="{{ url_for('customers') }}"><i class="bi bi-person-vcard me-1"></i> Clientes</a>
       {% endif %}
     </div>
     <div class="d-flex align-items-center gap-2 ms-2">
