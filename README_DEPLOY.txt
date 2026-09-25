@@ -1,23 +1,29 @@
-PYETRO SAPEKIDS - DEPLOY
+# Pyetro Sapekids — atualização completa
 
-Esta versão mantém a interface e os dados do Neon.
+Esta versão preserva a interface atual e o logo `static/logo.jpg`.
 
-CORREÇÃO DE LOGIN/SESSÃO:
-- A autenticação agora usa um token aleatório armazenado no banco (auth_sessions).
-- O token aponta diretamente para o ID do usuário no Neon.
-- O nome e o perfil exibidos em todas as páginas são carregados do usuário autenticado.
-- Isso evita que Dashboard, Produtos, Vendas etc. mostrem outro usuário.
+## Recursos incluídos
+- Produtos e estoque
+- Vendas, clientes e descontos
+- Exclusão de venda com devolução do estoque
+- Relatórios diário e mensal
+- Impressão de relatórios
+- Impressão de comprovante de venda
+- Usuários e permissões
+- Auditoria
+- Dashboard financeiro
+- Alertas de estoque baixo
+- Abertura e fechamento de caixa
+- Vinculação de vendas ao caixa aberto
+- Backup administrativo em ZIP/CSV (sem exportar hashes de senha)
+- Neon/PostgreSQL e SQLite local
 
-IMPORTANTE:
-- Não apagar o banco Neon.
-- Não alterar DATABASE_URL.
-- Substituir os arquivos do projeto por este pacote.
-- Fazer commit + push no GitHub e aguardar o Render.
-- Depois do deploy, sair da conta e entrar novamente para gerar o novo token.
+## Deploy
+1. Faça backup da pasta atual.
+2. Substitua os arquivos do projeto pelos arquivos deste pacote.
+3. Não apague nem altere o banco Neon.
+4. Faça commit e push para o GitHub.
+5. Aguarde o Render concluir o deploy.
+6. Faça logout e entre novamente para testar a sessão.
 
-Teste esperado:
-- login: teste
-- Dashboard: teste · Operador
-- Produtos: teste · Operador
-- Nova venda: teste · Operador
-- Vendas: teste · Operador
+A tabela `cash_sessions` e a coluna `sales.cash_session_id` são criadas automaticamente pela aplicação quando necessário.

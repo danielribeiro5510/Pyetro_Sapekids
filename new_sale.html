@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Nova venda · Pyetro Sapekids{% endblock %}
 {% block content %}
+{% if not open_cash %}
+<div class="alert alert-warning d-flex justify-content-between align-items-center no-print"><span><i class="bi bi-exclamation-triangle me-1"></i> Não há caixa aberto. A venda será registrada normalmente, mas não ficará vinculada a um caixa.</span><a class="btn btn-sm btn-dark" href="{{ url_for('cash') }}">Abrir caixa</a></div>
+{% else %}
+<div class="alert alert-success py-2 no-print"><i class="bi bi-unlock-fill me-1"></i> Caixa #{{ open_cash.id }} aberto por {{ open_cash.opened_by }}.</div>
+{% endif %}
 <div class="d-flex flex-column flex-md-row justify-content-between gap-2 align-items-md-center mb-4"><div><h1 class="page-title h2 mb-1"><i class="bi bi-cart-plus me-1"></i> Nova venda</h1><div class="page-subtitle">Monte o carrinho e finalize o pagamento.</div></div>{% if cart %}<form method="post" class="m-0"><input type="hidden" name="action" value="clear"><button class="btn btn-outline-danger"><i class="bi bi-trash3 me-1"></i> Limpar venda</button></form>{% endif %}</div>
 <div class="row g-4"><div class="col-lg-7">
 <div class="card p-4"><h3 class="section-title h5">Adicionar produto</h3><form method="post" class="row g-3 mt-1"><input type="hidden" name="action" value="add"><div class="col-12"><label class="form-label fw-semibold">Produto</label><select class="form-select" name="product_id" required><option value="">Selecione um produto...</option>{% for p in products %}<option value="{{ p.id }}">{{ p.name }}{% if p.brand %} - {{ p.brand }}{% endif %}{% if p.color %} - {{ p.color }}{% endif %}{% if p.size %} - Tam. {{ p.size }}{% endif %} | Estoque: {{ p.stock }} | R$ {{ '%.2f'|format(p.price) }}</option>{% endfor %}</select></div><div class="col-md-4"><label class="form-label fw-semibold">Quantidade</label><input class="form-control" type="number" min="1" name="quantity" value="1" required></div><div class="col-md-8 d-flex align-items-end"><button class="btn btn-primary w-100"><i class="bi bi-plus-lg me-1"></i> Adicionar à venda</button></div></form></div>

@@ -1,8 +1,9 @@
 {% extends "base.html" %}
 {% block title %}Venda #{{ sale.id }} · Pyetro Sapekids{% endblock %}
+{% block extra_head %}<style>@media print{.no-print{display:none!important}.print-receipt{box-shadow:none!important;border:0!important}body{background:#fff!important}@page{margin:10mm}}</style>{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4"><div><h1 class="page-title h2 mb-1">Venda #{{ sale.id }}</h1><div class="page-subtitle">Detalhes da venda.</div></div><a class="btn btn-light border" href="{{ url_for('sales') }}"><i class="bi bi-arrow-left me-1"></i> Voltar</a></div>
-<div class="row g-3 mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4"><div><h1 class="page-title h2 mb-1">Venda #{{ sale.id }}</h1><div class="page-subtitle">Detalhes da venda.</div></div><div class="d-flex gap-2 no-print"><button class="btn btn-dark" onclick="window.print()"><i class="bi bi-printer me-1"></i> Imprimir comprovante</button><a class="btn btn-light border" href="{{ url_for('sales') }}"><i class="bi bi-arrow-left me-1"></i> Voltar</a></div></div>
+<div class="row g-3 mb-4 print-receipt">
 <div class="col-md-3"><div class="card p-3 h-100"><small class="text-secondary">Cliente</small><strong class="mt-1">{{ sale.customer_name or 'Consumidor não identificado' }}</strong>{% if sale.customer_phone %}<small>{{ sale.customer_phone }}</small>{% endif %}</div></div>
 <div class="col-md-3"><div class="card p-3 h-100"><small class="text-secondary">Data</small><strong class="mt-1">{{ sale.created_at }}</strong></div></div>
 <div class="col-md-3"><div class="card p-3 h-100"><small class="text-secondary">Usuário</small><strong class="mt-1">{{ sale.username }}</strong></div></div>
