@@ -1855,6 +1855,15 @@ def admin_cleanup():
             conn.commit()
             flash("Histórico de movimentações excluído. O estoque atual foi mantido.", "success")
 
+        elif action == "cash":
+            # Limpa o histórico do caixa: movimentações (sangrias,
+            # suprimentos e despesas) e registros de abertura/fechamento.
+            # As vendas não são excluídas por esta opção.
+            conn.execute("DELETE FROM cash_movements")
+            conn.execute("DELETE FROM cash_sessions")
+            conn.commit()
+            flash("Registros do caixa excluídos. As vendas foram mantidas.", "success")
+
         elif action == "sales":
             # Exclui o histórico de vendas e os itens das vendas.
             # Antes disso, devolve ao estoque somente as quantidades de vendas
@@ -1904,7 +1913,7 @@ def admin_cleanup():
     finally:
         conn.close()
 
-    return redirect(url_for("admin_dashboard"))
+    return redirect(url_for("settings"))
 
 
 @app.route("/admin/audit")

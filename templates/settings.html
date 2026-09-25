@@ -87,6 +87,14 @@
         </form>
 
         <form method="post" action="{{ url_for('admin_cleanup') }}"
+              onsubmit="return confirm('ATENÇÃO! Isso apagará TODOS os registros do caixa, incluindo aberturas, fechamentos, sangrias, suprimentos e despesas. As vendas serão mantidas. Deseja continuar?');">
+          <input type="hidden" name="action" value="cash">
+          <button class="btn btn-outline-danger w-100">
+            <i class="bi bi-cash-coin me-1"></i>Excluir registros do caixa
+          </button>
+        </form>
+
+        <form method="post" action="{{ url_for('admin_cleanup') }}"
               onsubmit="return confirm('ATENÇÃO! Isso apagará TODAS as vendas, itens e trocas/devoluções relacionadas. O estoque das vendas concluídas será restaurado. Deseja continuar?');">
           <input type="hidden" name="action" value="sales">
           <button class="btn btn-danger w-100">
