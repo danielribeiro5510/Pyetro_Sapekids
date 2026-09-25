@@ -1164,7 +1164,7 @@ def reports():
     summary = conn.execute("""
         SELECT COUNT(*) AS sales_count, COALESCE(SUM(total), 0) AS revenue,
                COALESCE(SUM(subtotal), 0) AS subtotal,
-               COALESCE(SUM(discount), 0) AS discount
+               COALESCE(SUM(COALESCE(subtotal, total) * COALESCE(discount_percent, 0) / 100.0), 0) AS discount
         FROM sales WHERE substr(created_at, 1, 7) = ?
     """, (period,)).fetchone()
     items = conn.execute("""
@@ -1198,7 +1198,7 @@ def reports():
     day_summary = conn.execute("""
         SELECT COUNT(*) AS sales_count, COALESCE(SUM(total),0) revenue,
                COALESCE(SUM(subtotal),0) subtotal,
-               COALESCE(SUM(discount),0) discount
+               COALESCE(SUM(COALESCE(subtotal, total) * COALESCE(discount_percent, 0) / 100.0),0) discount
         FROM sales WHERE substr(created_at,1,10) = ?
     """, (selected_date,)).fetchone()
     day_items = conn.execute("""
@@ -1213,7 +1213,7 @@ def reports():
     """, (selected_date,)).fetchall()
     day_sales = conn.execute("""
         SELECT id, created_at, username, payment_method, total,
-               COALESCE(subtotal,total) subtotal, COALESCE(discount,0) discount
+               COALESCE(subtotal,total) subtotal, (COALESCE(subtotal,total) * COALESCE(discount_percent,0) / 100.0) discount
         FROM sales WHERE substr(created_at,1,10) = ?
         ORDER BY id DESC
     """, (selected_date,)).fetchall()
