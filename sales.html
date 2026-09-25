@@ -23,6 +23,7 @@
                         <th class="px-4">VENDA</th>
                         <th>DATA</th>
                         <th>USUÁRIO</th>
+                        <th>CLIENTE</th>
                         <th>PAGAMENTO</th>
                         <th>ITENS</th>
                         <th>TOTAL</th>
@@ -35,6 +36,7 @@
                         <td class="px-4 fw-bold">#{{ s.id }}</td>
                         <td>{{ s.created_at }}</td>
                         <td>{{ s.username }}</td>
+                        <td>{{ s.customer_name or '-' }}</td>
                         <td>{{ s.payment_method }}</td>
                         <td>{{ s.item_count }}</td>
                         <td class="fw-semibold">R$ {{ "%.2f"|format(s.total|float) }}</td>
