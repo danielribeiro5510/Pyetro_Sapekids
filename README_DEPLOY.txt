@@ -1,29 +1,36 @@
-# Pyetro Sapekids — atualização completa
+PYETRO SAPEKIDS - PACOTE COMPLETO
 
-Esta versão preserva a interface atual e o logo `static/logo.jpg`.
+Este pacote mantém a interface atual e adiciona:
+- cancelamento de venda preservando histórico;
+- troca/devolução com ajuste de estoque;
+- sangria, suprimento e despesas do caixa;
+- relatório financeiro por pagamento;
+- custo e lucro por venda;
+- fornecedores;
+- código de barras;
+- inventário/ajuste de estoque;
+- categorias configuráveis;
+- histórico de compras do cliente;
+- foto do produto por URL;
+- exportação Excel (.xlsx) e CSV;
+- impressão/PDF pelo navegador;
+- backup administrativo incluindo as novas tabelas.
 
-## Recursos incluídos
-- Produtos e estoque
-- Vendas, clientes e descontos
-- Exclusão de venda com devolução do estoque
-- Relatórios diário e mensal
-- Impressão de relatórios
-- Impressão de comprovante de venda
-- Usuários e permissões
-- Auditoria
-- Dashboard financeiro
-- Alertas de estoque baixo
-- Abertura e fechamento de caixa
-- Vinculação de vendas ao caixa aberto
-- Backup administrativo em ZIP/CSV (sem exportar hashes de senha)
-- Neon/PostgreSQL e SQLite local
+DEPLOY
+1. Faça uma cópia do projeto atual.
+2. Substitua o conteúdo do projeto pelo conteúdo deste ZIP.
+3. NÃO apague nem altere os dados do Neon.
+4. Mantenha no Render as variáveis DATABASE_URL, SECRET_KEY e SEED_USERS.
+5. Faça commit e push para a branch main.
+6. Aguarde o deploy do Render.
+7. Faça logout/login e teste as funções novas.
 
-## Deploy
-1. Faça backup da pasta atual.
-2. Substitua os arquivos do projeto pelos arquivos deste pacote.
-3. Não apague nem altere o banco Neon.
-4. Faça commit e push para o GitHub.
-5. Aguarde o Render concluir o deploy.
-6. Faça logout e entre novamente para testar a sessão.
+MIGRAÇÃO
+As novas tabelas e colunas são criadas automaticamente no primeiro startup. Os dados existentes são preservados.
 
-A tabela `cash_sessions` e a coluna `sales.cash_session_id` são criadas automaticamente pela aplicação quando necessário.
+IMPORTANTE
+- O ID interno das vendas não é reutilizado.
+- O número mostrado ao usuário é independente do ID interno.
+- Vendas canceladas deixam de entrar no faturamento, lucro, contagens e relatórios ativos.
+- O cancelamento restaura estoque e, quando a venda foi em dinheiro, registra o estorno como sangria no caixa.
+- Trocas/devoluções impedem a exclusão/cancelamento posterior daquela venda para preservar o histórico.

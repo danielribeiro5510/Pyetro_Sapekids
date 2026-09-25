@@ -77,6 +77,8 @@
                             </a>
 
                             {% if is_admin %}
+                            <a href="{{ url_for('return_sale', sale_id=s.id) }}" class="btn btn-sm btn-outline-warning"><i class="bi bi-arrow-repeat me-1"></i>Troca</a>
+                            <form method="post" action="{{ url_for('cancel_sale', sale_id=s.id) }}" class="d-inline" onsubmit="return confirm('Cancelar esta venda? O estoque será restaurado e o histórico será preservado.');"><button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-x-circle me-1"></i>Cancelar</button></form>
                             <form method="post"
                                   action="{{ url_for('delete_sale', sale_id=s.id) }}"
                                   class="d-inline"
