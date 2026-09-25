@@ -1141,74 +1141,100 @@ def delete_customer(customer_id):
 @app.route("/reports", methods=["GET"])
 @login_required
 def reports():
+    now = datetime.now(TZ)
+    mode = request.args.get("mode", "month")
+    selected_date = request.args.get("date", now.strftime("%Y-%m-%d"))
     try:
-        month = int(request.args.get("month") or datetime.now(TZ).month)
-        year = int(request.args.get("year") or datetime.now(TZ).year)
+        datetime.strptime(selected_date, "%Y-%m-%d")
     except ValueError:
-        month, year = datetime.now(TZ).month, datetime.now(TZ).year
+        selected_date = now.strftime("%Y-%m-%d")
 
-    if not 1 <= month <= 12:
-        month = datetime.now(TZ).month
-    if not 2000 <= year <= 2100:
-        year = datetime.now(TZ).year
+    try:
+        month = int(request.args.get("month") or now.month)
+        year = int(request.args.get("year") or now.year)
+    except ValueError:
+        month, year = now.month, now.year
+    if not 1 <= month <= 12: month = now.month
+    if not 2000 <= year <= 2100: year = now.year
 
     period = f"{year:04d}-{month:02d}"
     conn = db()
 
+    # Resumo do mês selecionado.
     summary = conn.execute("""
-        SELECT COUNT(*) AS sales_count, COALESCE(SUM(total), 0) AS revenue
+        SELECT COUNT(*) AS sales_count, COALESCE(SUM(total), 0) AS revenue,
+               COALESCE(SUM(subtotal), 0) AS subtotal,
+               COALESCE(SUM(discount), 0) AS discount
         FROM sales WHERE substr(created_at, 1, 7) = ?
     """, (period,)).fetchone()
-
     items = conn.execute("""
         SELECT COALESCE(SUM(quantity), 0) AS items_sold
         FROM sale_items si JOIN sales s ON s.id = si.sale_id
         WHERE substr(s.created_at, 1, 7) = ?
     """, (period,)).fetchone()
-
     payments = conn.execute("""
         SELECT payment_method, COUNT(*) AS sales_count, COALESCE(SUM(total), 0) AS total
         FROM sales WHERE substr(created_at, 1, 7) = ?
         GROUP BY payment_method ORDER BY total DESC
     """, (period,)).fetchall()
-
     top_products = conn.execute("""
         SELECT p.name, COALESCE(p.brand,'') brand, COALESCE(p.color,'') color,
                COALESCE(p.size,'') size, SUM(si.quantity) quantity,
                SUM(si.subtotal) total
-        FROM sale_items si
-        JOIN sales s ON s.id = si.sale_id
+        FROM sale_items si JOIN sales s ON s.id = si.sale_id
         JOIN products p ON p.id = si.product_id
         WHERE substr(s.created_at, 1, 7) = ?
         GROUP BY p.id, p.name, p.brand, p.color, p.size
         ORDER BY quantity DESC, total DESC LIMIT 10
     """, (period,)).fetchall()
-
     monthly = conn.execute("""
         SELECT substr(created_at,1,7) period, COUNT(*) sales_count,
                COALESCE(SUM(total),0) total
         FROM sales WHERE substr(created_at,1,4) = ?
         GROUP BY substr(created_at,1,7) ORDER BY period
     """, (str(year),)).fetchall()
+
+    # Resumo e lista do dia selecionado.
+    day_summary = conn.execute("""
+        SELECT COUNT(*) AS sales_count, COALESCE(SUM(total),0) revenue,
+               COALESCE(SUM(subtotal),0) subtotal,
+               COALESCE(SUM(discount),0) discount
+        FROM sales WHERE substr(created_at,1,10) = ?
+    """, (selected_date,)).fetchone()
+    day_items = conn.execute("""
+        SELECT COALESCE(SUM(si.quantity),0) items_sold
+        FROM sale_items si JOIN sales s ON s.id = si.sale_id
+        WHERE substr(s.created_at,1,10) = ?
+    """, (selected_date,)).fetchone()
+    day_payments = conn.execute("""
+        SELECT payment_method, COUNT(*) sales_count, COALESCE(SUM(total),0) total
+        FROM sales WHERE substr(created_at,1,10) = ?
+        GROUP BY payment_method ORDER BY total DESC
+    """, (selected_date,)).fetchall()
+    day_sales = conn.execute("""
+        SELECT id, created_at, username, payment_method, total,
+               COALESCE(subtotal,total) subtotal, COALESCE(discount,0) discount
+        FROM sales WHERE substr(created_at,1,10) = ?
+        ORDER BY id DESC
+    """, (selected_date,)).fetchall()
     conn.close()
 
-    revenue = float(summary["revenue"] or 0)
-    sales_count = int(summary["sales_count"] or 0)
-    items_sold = int(items["items_sold"] or 0)
-    ticket_average = revenue / sales_count if sales_count else 0
+    revenue = float(summary["revenue"] or 0); sales_count = int(summary["sales_count"] or 0)
+    items_sold = int(items["items_sold"] or 0); ticket_average = revenue / sales_count if sales_count else 0
+    day_revenue = float(day_summary["revenue"] or 0); day_sales_count = int(day_summary["sales_count"] or 0)
+    day_items_sold = int(day_items["items_sold"] or 0); day_ticket_average = day_revenue / day_sales_count if day_sales_count else 0
+    day_subtotal = float(day_summary["subtotal"] or 0); day_discount = float(day_summary["discount"] or 0)
 
-    months = [(1,"Janeiro"),(2,"Fevereiro"),(3,"Março"),(4,"Abril"),
-              (5,"Maio"),(6,"Junho"),(7,"Julho"),(8,"Agosto"),
-              (9,"Setembro"),(10,"Outubro"),(11,"Novembro"),(12,"Dezembro")]
-    years = list(range(datetime.now(TZ).year - 5, datetime.now(TZ).year + 1))
-
-    return render_template(
-        "reports.html", month=month, year=year, months=months, years=years,
-        revenue=revenue, sales_count=sales_count, items_sold=items_sold,
-        ticket_average=ticket_average, payments=payments,
-        top_products=top_products, monthly=monthly
-    )
-
+    months = [(1,"Janeiro"),(2,"Fevereiro"),(3,"Março"),(4,"Abril"),(5,"Maio"),(6,"Junho"),
+              (7,"Julho"),(8,"Agosto"),(9,"Setembro"),(10,"Outubro"),(11,"Novembro"),(12,"Dezembro")]
+    years = list(range(now.year - 5, now.year + 1))
+    return render_template("reports.html", month=month, year=year, months=months, years=years,
+        mode=mode, selected_date=selected_date, revenue=revenue, sales_count=sales_count,
+        items_sold=items_sold, ticket_average=ticket_average, payments=payments,
+        top_products=top_products, monthly=monthly, day_revenue=day_revenue,
+        day_sales_count=day_sales_count, day_items_sold=day_items_sold,
+        day_ticket_average=day_ticket_average, day_subtotal=day_subtotal,
+        day_discount=day_discount, day_payments=day_payments, day_sales=day_sales)
 
 
 @app.route("/admin/users")

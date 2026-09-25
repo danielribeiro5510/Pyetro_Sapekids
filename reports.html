@@ -1,16 +1,55 @@
 {% extends "base.html" %}
 {% block title %}Relatórios · Pyetro Sapekids{% endblock %}
 {% block content %}
-<div class="mb-4"><h1 class="page-title h2 mb-1"><i class="bi bi-bar-chart-fill me-1"></i> Relatório de vendas</h1><div class="page-subtitle">Acompanhe o desempenho por período.</div></div>
-<div class="card p-4 mb-4"><form method="get" class="row g-3 align-items-end"><div class="col-md-4"><label class="form-label fw-semibold">Mês</label><select class="form-select" name="month">{% for number,name in months %}<option value="{{ number }}" {% if number == month %}selected{% endif %}>{{ name }}</option>{% endfor %}</select></div><div class="col-md-3"><label class="form-label fw-semibold">Ano</label><select class="form-select" name="year">{% for y in years %}<option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>{% endfor %}</select></div><div class="col-md-3"><button class="btn btn-primary w-100"><i class="bi bi-filter me-1"></i> Gerar relatório</button></div></form></div>
-<div class="row g-3 mb-4">
-{% for label,value,icon in [('Faturamento','R$ %.2f'|format(revenue),'bi-currency-dollar'),('Vendas',sales_count,'bi-receipt'),('Itens vendidos',items_sold,'bi-box-seam'),('Ticket médio','R$ %.2f'|format(ticket_average),'bi-graph-up')] %}
-<div class="col-md-3"><div class="card metric-card p-4 h-100"><div class="metric-label">{{ label }}</div><div class="metric-value mt-1">{{ value }}</div><i class="bi {{ icon }} position-absolute end-0 bottom-0 me-4 mb-4 text-primary opacity-25 fs-1"></i></div></div>
-{% endfor %}
+<style>
+@media print {
+  body * { visibility: hidden !important; }
+  .print-area, .print-area * { visibility: visible !important; }
+  .print-area { position: absolute; left: 0; top: 0; width: 100%; }
+  .no-print { display: none !important; }
+  @page { margin: 12mm; }
+}
+</style>
+<div class="mb-4 no-print"><h1 class="page-title h2 mb-1"><i class="bi bi-bar-chart-fill me-1"></i> Relatório de vendas</h1><div class="page-subtitle">Acompanhe o desempenho por período.</div></div>
+<div class="card p-4 mb-4 no-print">
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    <a class="btn {{ 'btn-primary' if mode == 'month' else 'btn-outline-primary' }}" href="{{ url_for('reports', mode='month', month=month, year=year, date=selected_date) }}"><i class="bi bi-calendar-month me-1"></i> Relatório mensal</a>
+    <a class="btn {{ 'btn-primary' if mode == 'day' else 'btn-outline-primary' }}" href="{{ url_for('reports', mode='day', month=month, year=year, date=selected_date) }}"><i class="bi bi-calendar-day me-1"></i> Relatório diário</a>
+  </div>
+  <form method="get" class="row g-3 align-items-end">
+    <input type="hidden" name="mode" value="{{ mode }}">
+    <div class="col-md-3"><label class="form-label fw-semibold">Mês</label><select class="form-select" name="month">{% for number,name in months %}<option value="{{ number }}" {% if number == month %}selected{% endif %}>{{ name }}</option>{% endfor %}</select></div>
+    <div class="col-md-2"><label class="form-label fw-semibold">Ano</label><select class="form-select" name="year">{% for y in years %}<option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>{% endfor %}</select></div>
+    <div class="col-md-3"><label class="form-label fw-semibold">Dia</label><input class="form-control" type="date" name="date" value="{{ selected_date }}"></div>
+    <div class="col-md-2"><button class="btn btn-primary w-100"><i class="bi bi-filter me-1"></i> Gerar</button></div>
+    <div class="col-md-2"><button type="button" class="btn btn-dark w-100" onclick="window.print()"><i class="bi bi-printer me-1"></i> Imprimir</button></div>
+  </form>
 </div>
-<div class="row g-4">
-<div class="col-lg-6"><div class="card p-4 h-100"><h3 class="section-title h5">💳 Por forma de pagamento</h3><div class="table-responsive mt-3"><table class="table"><thead><tr><th>Pagamento</th><th>Vendas</th><th>Total</th></tr></thead><tbody>{% for p in payments %}<tr><td>{{ p.payment_method }}</td><td>{{ p.sales_count }}</td><td>R$ {{ '%.2f'|format(p.total) }}</td></tr>{% else %}<tr><td colspan="3"><div class="empty-state">Nenhuma venda neste mês.</div></td></tr>{% endfor %}</tbody></table></div></div></div>
-<div class="col-lg-6"><div class="card p-4 h-100"><h3 class="section-title h5">🏆 Produtos mais vendidos</h3><div class="table-responsive mt-3"><table class="table"><thead><tr><th>Produto</th><th>Qtd.</th><th>Total</th></tr></thead><tbody>{% for p in top_products %}<tr><td class="fw-semibold">{{ p.name }}{% if p.brand %}<br><small class="text-secondary">{{ p.brand }}{% if p.color %} · {{ p.color }}{% endif %}{% if p.size %} · Tam. {{ p.size }}{% endif %}</small>{% endif %}</td><td>{{ p.quantity }}</td><td>R$ {{ '%.2f'|format(p.total) }}</td></tr>{% else %}<tr><td colspan="3"><div class="empty-state">Nenhuma venda neste mês.</div></td></tr>{% endfor %}</tbody></table></div></div></div>
+
+{% if mode == 'day' %}
+<div class="print-area">
+  <div class="mb-4"><h1 class="h3 mb-1">Relatório diário — {{ selected_date }}</h1><div class="text-secondary">Pyetro Sapekids</div></div>
+  <div class="row g-3 mb-4">
+    {% for label,value in [('Faturamento','R$ %.2f'|format(day_revenue)),('Vendas',day_sales_count),('Itens vendidos',day_items_sold),('Descontos','R$ %.2f'|format(day_discount))] %}
+    <div class="col-md-3"><div class="card metric-card p-4 h-100"><div class="metric-label">{{ label }}</div><div class="metric-value mt-1">{{ value }}</div></div></div>
+    {% endfor %}
+  </div>
+  <div class="card p-4 mb-4"><h3 class="section-title h5">Vendas do dia</h3><div class="table-responsive mt-3"><table class="table"><thead><tr><th>Venda</th><th>Horário</th><th>Usuário</th><th>Pagamento</th><th>Desconto</th><th>Total</th></tr></thead><tbody>{% for s in day_sales %}<tr><td>#{{ s.id }}</td><td>{{ s.created_at }}</td><td>{{ s.username }}</td><td>{{ s.payment_method }}</td><td>R$ {{ '%.2f'|format(s.discount or 0) }}</td><td>R$ {{ '%.2f'|format(s.total) }}</td></tr>{% else %}<tr><td colspan="6">Nenhuma venda neste dia.</td></tr>{% endfor %}</tbody></table></div></div>
+  <div class="card p-4"><h3 class="section-title h5">Por forma de pagamento</h3><div class="table-responsive mt-3"><table class="table"><thead><tr><th>Pagamento</th><th>Vendas</th><th>Total</th></tr></thead><tbody>{% for p in day_payments %}<tr><td>{{ p.payment_method }}</td><td>{{ p.sales_count }}</td><td>R$ {{ '%.2f'|format(p.total) }}</td></tr>{% else %}<tr><td colspan="3">Nenhuma venda neste dia.</td></tr>{% endfor %}</tbody></table></div></div>
 </div>
-<div class="card p-4 mt-4"><h3 class="section-title h5">📅 Vendas por mês em {{ year }}</h3><div class="table-responsive mt-3"><table class="table mb-0"><thead><tr><th>Mês</th><th>Vendas</th><th>Faturamento</th></tr></thead><tbody>{% for row in monthly %}<tr><td>{{ row.period }}</td><td>{{ row.sales_count }}</td><td>R$ {{ '%.2f'|format(row.total) }}</td></tr>{% else %}<tr><td colspan="3"><div class="empty-state">Nenhuma venda registrada em {{ year }}.</div></td></tr>{% endfor %}</tbody></table></div></div>
+{% else %}
+<div class="print-area">
+  <div class="mb-4"><h1 class="h3 mb-1">Relatório mensal — {{ months[month-1][1] }} / {{ year }}</h1><div class="text-secondary">Pyetro Sapekids</div></div>
+  <div class="row g-3 mb-4">
+  {% for label,value,icon in [('Faturamento','R$ %.2f'|format(revenue),'bi-currency-dollar'),('Vendas',sales_count,'bi-receipt'),('Itens vendidos',items_sold,'bi-box-seam'),('Ticket médio','R$ %.2f'|format(ticket_average),'bi-graph-up')] %}
+  <div class="col-md-3"><div class="card metric-card p-4 h-100"><div class="metric-label">{{ label }}</div><div class="metric-value mt-1">{{ value }}</div><i class="bi {{ icon }} position-absolute end-0 bottom-0 me-4 mb-4 text-primary opacity-25 fs-1"></i></div></div>
+  {% endfor %}
+  </div>
+  <div class="row g-4">
+  <div class="col-lg-6"><div class="card p-4 h-100"><h3 class="section-title h5">💳 Por forma de pagamento</h3><div class="table-responsive mt-3"><table class="table"><thead><tr><th>Pagamento</th><th>Vendas</th><th>Total</th></tr></thead><tbody>{% for p in payments %}<tr><td>{{ p.payment_method }}</td><td>{{ p.sales_count }}</td><td>R$ {{ '%.2f'|format(p.total) }}</td></tr>{% else %}<tr><td colspan="3">Nenhuma venda neste mês.</td></tr>{% endfor %}</tbody></table></div></div></div>
+  <div class="col-lg-6"><div class="card p-4 h-100"><h3 class="section-title h5">🏆 Produtos mais vendidos</h3><div class="table-responsive mt-3"><table class="table"><thead><tr><th>Produto</th><th>Qtd.</th><th>Total</th></tr></thead><tbody>{% for p in top_products %}<tr><td class="fw-semibold">{{ p.name }}{% if p.brand %}<br><small class="text-secondary">{{ p.brand }}{% if p.color %} · {{ p.color }}{% endif %}{% if p.size %} · Tam. {{ p.size }}{% endif %}</small>{% endif %}</td><td>{{ p.quantity }}</td><td>R$ {{ '%.2f'|format(p.total) }}</td></tr>{% else %}<tr><td colspan="3">Nenhuma venda neste mês.</td></tr>{% endfor %}</tbody></table></div></div></div>
+  </div>
+  <div class="card p-4 mt-4"><h3 class="section-title h5">📅 Vendas por mês em {{ year }}</h3><div class="table-responsive mt-3"><table class="table mb-0"><thead><tr><th>Mês</th><th>Vendas</th><th>Faturamento</th></tr></thead><tbody>{% for row in monthly %}<tr><td>{{ row.period }}</td><td>{{ row.sales_count }}</td><td>R$ {{ '%.2f'|format(row.total) }}</td></tr>{% else %}<tr><td colspan="3">Nenhuma venda registrada em {{ year }}.</td></tr>{% endfor %}</tbody></table></div></div>
+</div>
+{% endif %}
 {% endblock %}

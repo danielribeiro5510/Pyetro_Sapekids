@@ -30,7 +30,7 @@
 <nav class="topbar navbar navbar-expand-lg">
   <div class="container-fluid px-3 px-lg-4">
     <a class="brand navbar-brand" href="{{ url_for('admin_dashboard') if is_admin else url_for('dashboard') }}">
-      <img class="brand-logo" src="{{ url_for('static', filename='logo_header.jpg') }}" alt="Pyetro Sapekids">
+      <img class="brand-logo" src="{{ url_for('static', filename='logo_header.png') }}" alt="Pyetro Sapekids">
     </a>
     <div class="nav-scroll d-flex align-items-center ms-lg-3 flex-grow-1">
       {% if is_admin %}
