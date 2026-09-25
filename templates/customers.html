@@ -1,8 +1,16 @@
 {% extends "base.html" %}
 {% block title %}Clientes · Pyetro Sapekids{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4"><div><h1 class="h2 mb-1">Clientes</h1><div class="text-secondary">Cadastro básico para identificar vendas.</div></div><a class="btn btn-dark" href="{{ url_for('customer_new') }}">Novo cliente</a></div>
-<div class="card p-3"><div class="table-responsive"><table class="table align-middle"><thead><tr><th>Nome</th><th>Telefone</th><th>E-mail</th><th>Ações</th></tr></thead><tbody>
-{% for c in customers %}<tr><td>{{ c.name }}</td><td>{{ c.phone or '-' }}</td><td>{{ c.email or '-' }}</td><td><a class="btn btn-sm btn-outline-dark" href="{{ url_for('customer_edit', customer_id=c.id) }}">Editar</a><form method="post" action="{{ url_for('customer_delete', customer_id=c.id) }}" class="d-inline" onsubmit="return confirm('Excluir cliente?')"><button class="btn btn-sm btn-outline-danger">Excluir</button></form></td></tr>{% else %}<tr><td colspan="4">Nenhum cliente cadastrado.</td></tr>{% endfor %}
-</tbody></table></div></div>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+  <div><h1 class="fw-bold mb-1">Clientes</h1><p class="text-muted mb-0">Cadastre e consulte os clientes da loja.</p></div>
+  <a href="{{ url_for('new_customer') }}" class="btn btn-success"><i class="bi bi-person-plus me-1"></i>Novo cliente</a>
+</div>
+<div class="card border-0 shadow-sm mb-4"><div class="card-body">
+<form class="row g-2" method="get"><div class="col-md-10"><input class="form-control" name="q" value="{{ q }}" placeholder="Pesquisar por nome, CPF ou telefone"></div><div class="col-md-2"><button class="btn btn-primary w-100"><i class="bi bi-search me-1"></i>Pesquisar</button></div></form>
+</div></div>
+<div class="card border-0 shadow-sm"><div class="card-body p-0">
+{% if customers %}<div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th class="px-4">NOME</th><th>CPF</th><th>TELEFONE</th><th>WHATSAPP</th><th>ENDEREÇO</th><th class="text-end px-4">AÇÕES</th></tr></thead><tbody>
+{% for c in customers %}<tr><td class="px-4 fw-semibold">{{ c.name }}</td><td>{{ c.cpf or '-' }}</td><td>{{ c.phone or '-' }}</td><td>{{ c.whatsapp or '-' }}</td><td>{{ c.address or '-' }}</td><td class="text-end px-4 text-nowrap"><a class="btn btn-sm btn-outline-primary" href="{{ url_for('edit_customer', customer_id=c.id) }}"><i class="bi bi-pencil me-1"></i>Editar</a>{% if is_admin %}<form method="post" action="{{ url_for('delete_customer', customer_id=c.id) }}" class="d-inline" onsubmit="return confirm('Excluir este cliente?');"><button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash me-1"></i>Excluir</button></form>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>{% else %}<div class="p-5 text-center text-muted"><i class="bi bi-people fs-1 d-block mb-3"></i>Nenhum cliente cadastrado.</div>{% endif %}
+</div></div>
 {% endblock %}
