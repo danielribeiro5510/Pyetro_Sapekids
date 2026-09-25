@@ -9,10 +9,10 @@
 <div class="card p-3">
 <div class="table-responsive">
 <table class="table table-hover mb-0">
-<thead><tr><th>Produto</th><th>Categoria</th><th>Marca</th><th>Cor</th><th>Tamanho</th><th>Preço</th><th>Estoque</th><th>Ações</th></tr></thead>
+<thead><tr><th>Produto</th><th>Categoria</th><th>Marca</th><th>Cor</th><th>Tamanho</th><th>Preço</th><th>Custo</th><th>Estoque</th><th>Ações</th></tr></thead>
 <tbody>
 {% for p in products %}
-<tr><td class="fw-semibold">{{ p.name }}</td><td>{{ p.category }}</td><td>{{ p.brand or '-' }}</td><td>{{ p.color or '-' }}</td><td>{{ p.size or '-' }}</td><td>R$ {{ '%.2f'|format(p.price) }}</td><td><span class="badge-soft {% if p.stock <= p.min_stock %}badge-exit{% else %}badge-entry{% endif %}">{{ p.stock }}</span></td><td class="text-nowrap">
+<tr><td class="fw-semibold">{{ p.name }}</td><td>{{ p.category }}</td><td>{{ p.brand or '-' }}</td><td>{{ p.color or '-' }}</td><td>{{ p.size or '-' }}</td><td>R$ {{ '%.2f'|format(p.price) }}</td><td>R$ {{ '%.2f'|format(p.cost or 0) }}</td><td><span class="badge-soft {% if p.stock <= p.min_stock %}badge-exit{% else %}badge-entry{% endif %}">{{ p.stock }}</span></td><td class="text-nowrap">
 <a class="btn btn-sm btn-outline-primary" href="{{ url_for('stock', product_id=p.id) }}">Estoque</a>
 <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('edit_product', product_id=p.id) }}">Editar</a>
 {% if is_admin %}
@@ -24,6 +24,6 @@
 </form>
 {% endif %}
 </td></tr>
-{% else %}<tr><td colspan="8"><div class="empty-state"><i class="bi bi-box-seam fs-2 d-block mb-2"></i>Nenhum produto cadastrado.</div></td></tr>{% endfor %}
+{% else %}<tr><td colspan="9"><div class="empty-state"><i class="bi bi-box-seam fs-2 d-block mb-2"></i>Nenhum produto cadastrado.</div></td></tr>{% endfor %}
 </tbody></table></div></div>
 {% endblock %}
